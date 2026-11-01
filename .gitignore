@@ -19,6 +19,9 @@ yarn.lock
 !/writable/**/.htaccess
 !/writable/**/index.html
 
+# User uploaded media managed by CMS
+/public/assets/portal/uploads/media/*
+
 # Tests
 /phpunit.xml
 .phpunit.result.cache

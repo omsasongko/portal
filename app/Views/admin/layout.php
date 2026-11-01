@@ -27,6 +27,15 @@ $session = session();
                     <li class="nav-item">
                         <a class="nav-link" href="<?= base_url('admin') ?>">Dasbor</a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Pengaturan
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
+                            <li><a class="dropdown-item" href="<?= base_url('admin/settings/identity') ?>">Identitas Situs</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('admin/settings/hero') ?>">Hero</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= base_url('admin/change-password') ?>">Ubah Kata Sandi</a>
                     </li>

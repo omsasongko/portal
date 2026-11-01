@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <!-- Basic -->
     <meta charset="utf-8">
@@ -9,14 +9,14 @@
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
  
      <!-- Site Metas -->
-    <title>Dominic - Responsive HTML5 OnePage Template</title>  
-    <meta name="keywords" content="">
-    <meta name="description" content="">
-    <meta name="author" content="">
+    <title><?= esc($identity['site_title'] ?? 'Dominic') ?></title>
+    <meta name="keywords" content="<?= esc($identity['meta_keywords'] ?? '') ?>">
+    <meta name="description" content="<?= esc($identity['meta_description'] ?? '') ?>">
+    <meta name="author" content="<?= esc($identity['meta_author'] ?? '') ?>">
 
     <!-- Site Icons -->
-    <link rel="shortcut icon" href="<?= base_url('assets/portal/images/favicon.ico') ?>" type="image/x-icon" />
-    <link rel="apple-touch-icon" href="<?= base_url('assets/portal/images/apple-touch-icon.png') ?>">
+    <link rel="shortcut icon" href="<?= base_url($identity['favicon'] ?? 'assets/portal/images/favicon.ico') ?>" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="<?= base_url($identity['apple_touch_icon'] ?? 'assets/portal/images/apple-touch-icon.png') ?>">
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/bootstrap.min.css') ?>">
@@ -36,6 +36,7 @@
 </head>
 <body id="page-top" class="politics_version">
 
+    <?php if (($identity['show_preloader'] ?? '1') === '1'): ?>
     <!-- LOADER -->
     <div id="preloader">
         <div id="main-ld">
@@ -43,12 +44,13 @@
 		</div>
     </div><!-- end loader -->
     <!-- END LOADER -->
-	
+    <?php endif; ?>
+
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNav">
       <div class="container">
         <a class="navbar-brand js-scroll-trigger" href="#page-top">
-			<img class="img-fluid" src="<?= base_url('assets/portal/images/logo.png') ?>" alt="" />
+			<img class="img-fluid" src="<?= base_url($identity['logo'] ?? 'assets/portal/images/logo.png') ?>" alt="<?= esc($identity['site_name'] ?? '') ?>" />
 		</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
           Menu
@@ -82,19 +84,22 @@
       </div>
     </nav>
 	
-	<section id="home" class="main-banner parallaxie" style="background: url('<?= base_url('assets/portal/uploads/banner-01.jpg') ?>')">
+	<section id="home" class="main-banner parallaxie" style="background: url('<?= base_url($hero['background_image'] ?? 'assets/portal/uploads/banner-01.jpg') ?>')">
 		<div class="heading">
-			<h1>hello i'm Dominic</h1>
-			<p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, <br>sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."</p>
+			<h1><?= nl2br(esc($hero['heading'] ?? "hello i'm Dominic")) ?></h1>
+			<p><?= nl2br(esc($hero['subheading'] ?? '')) ?></p>
+            <?php if (($hero['use_rotating_words'] ?? true) && ! empty($hero['rotating_words'])): ?>
 			<h3 class="cd-headline clip is-full-width">
-				<span>Lorem ipsum dolor sit amet </span>
 				<span class="cd-words-wrapper">
-					<b class="is-visible">Web Developer</b>
-					<b>Web Design</b>
-					<b>Creative Design</b>
-					<b>Graphic Design</b>
+                    <?php foreach ($hero['rotating_words'] as $idx => $word): ?>
+					    <b class="<?= $idx === 0 ? 'is-visible' : '' ?>"><?= esc($word) ?></b>
+                    <?php endforeach; ?>
 				</span>
 			</h3>
+            <?php endif; ?>
+            <?php if (! empty($hero['button_label'])): ?>
+                <a href="<?= esc($hero['button_link'] ?: '#') ?>" class="sim-btn btn-hover-new mt-3" data-text="<?= esc($hero['button_label']) ?>"><span><?= esc($hero['button_label']) ?></span></a>
+            <?php endif; ?>
 		</div>
 	</section>
 
@@ -517,7 +522,9 @@
         </div><!-- end container -->
     </div><!-- end copyrights -->
 
+    <?php if (($identity['show_scroll_to_top'] ?? '1') === '1'): ?>
     <a href="#" id="scroll-to-top" class="dmtop global-radius"><i class="fa fa-angle-up"></i></a>
+    <?php endif; ?>
 
     <!-- CORE -->
     <script src="<?= base_url('assets/portal/js/jquery.min.js') ?>"></script>

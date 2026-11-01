@@ -18,4 +18,10 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->get('/', 'Admin\Dashboard::index');
     $routes->get('change-password', 'Admin\Auth::changePasswordForm');
     $routes->post('change-password', 'Admin\Auth::doChangePassword');
+
+    // Settings
+    $routes->get('settings/identity', 'Admin\Settings::identity');
+    $routes->post('settings/identity', 'Admin\Settings::doIdentity');
+    $routes->get('settings/hero', 'Admin\Settings::hero');
+    $routes->post('settings/hero', 'Admin\Settings::doHero');
 });

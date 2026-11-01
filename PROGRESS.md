@@ -17,6 +17,15 @@
 - [x] Created `admin:create` CLI command with hidden password input
 - [x] Created initial admin user via CLI
 
+### Site Identity, Header & Hero Settings (Owner Accepted)
+- [x] Added additive migrations for `media`, `site_settings`, and `homepage_sections`
+- [x] Seeded initial site identity (title, name, logo, favicon, apple-touch-icon, meta tags) and hero content from the existing homepage
+- [x] Created `SettingModel`, `MediaModel`, and `HomepageSectionModel`
+- [x] Created protected admin forms at `/admin/settings/identity` and `/admin/settings/hero` with Indonesian labels, server-side validation, and CSRF
+- [x] Implemented validated image upload/selection for logo, favicon, apple-touch-icon, and hero background; rejected non-image/executable uploads
+- [x] Rendered saved settings on the public homepage with output escaping; preserved Bootstrap 5 and responsive behavior
+- [x] Updated dashboard to show real counts for implemented settings/hero modules and disabled links for unavailable modules
+
 ### Environment / Infrastructure
 - [x] Apache 2.4.69 configured for Portal on `127.0.0.1:8081`
 - [x] DocumentRoot points to `/Volumes/Data/Project/portal/public`
@@ -73,12 +82,26 @@
 - [x] `POST /admin/logout` clears session and returns to login page
 - [x] Authenticated password change works and requires the old password
 - [x] CSRF tokens protect all forms; missing/mismatched tokens return 403
+- [x] Admin can save/update site identity and hero settings with validation feedback
+- [x] Invalid image uploads are rejected
+- [x] Saved settings persist after reload and render on the public homepage
+- [x] Public homepage preserves original appearance when settings are reset to defaults
+- [x] Anonymous access to `/admin/settings/*` is denied and redirected to login
 
 ## Known Issues / Console Errors
 - One external resource fails in the offline sandbox: `https://fonts.googleapis.com/css?family=Roboto+Mono:300,400,500,700` (imported by `style.css`). This is a network limitation, not a code error.
 
 ## Recent Fixes
 - Fixed `AdminLoginAttemptModel` to disable automatic timestamps, resolving an `Unknown column 'updated_at' in 'INSERT INTO'` error on failed login attempts.
+- Fixed `MediaModel` to disable automatic timestamps (media table only tracks `created_at`).
+
+## Manual Acceptance Steps
+1. Login at `/admin/login` and open `/admin`.
+2. Click **Pengaturan > Identitas Situs**: update site title/name, meta tags, and upload/select logo/favicon/apple-touch-icon; save and verify public homepage reflects changes.
+3. Click **Pengaturan > Hero**: update heading, description, rotating words, background image, and optional button; save and verify public homepage reflects changes.
+4. Test validation: leave required fields blank and confirm error messages.
+5. Test upload rejection: attempt to upload a `.php.jpg` file and confirm it is rejected.
+6. Resize browser to mobile width or use device emulation: confirm layout remains responsive and navigation collapses.
 
 ## Unverified
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
@@ -87,6 +110,7 @@
 ## Pending (future tasks)
 - [x] Database setup and migrations
 - [x] Admin authentication and dashboard
+- [x] Site identity and hero settings
 - [ ] Category/tag CRUD
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish
