@@ -5,6 +5,18 @@
 
 ## Completed
 
+### CMS Foundation
+- [x] Added `.env` (ignored) and `.env.example` with app and database configuration
+- [x] Connected to MariaDB 11.4 on `127.0.0.1:3307`; created `portal_db`
+- [x] Created and ran migrations for `admin_users` and `admin_login_attempts`
+- [x] Created `AdminModel`, `AdminLoginAttemptModel`, `AdminAuth` filter, and admin controllers (`Admin/Auth`, `Admin/Dashboard`)
+- [x] Implemented routes: `/admin/login`, protected `/admin`, `POST /admin/logout`, and authenticated `/admin/change-password`
+- [x] Enabled global CSRF protection and registered `adminAuth` filter
+- [x] Set `indexPage` to empty string for clean URLs
+- [x] Created admin views with local Bootstrap 5 assets and Indonesian labels
+- [x] Created `admin:create` CLI command with hidden password input
+- [x] Created initial admin user via CLI
+
 ### Environment / Infrastructure
 - [x] Apache 2.4.69 configured for Portal on `127.0.0.1:8081`
 - [x] DocumentRoot points to `/Volumes/Data/Project/portal/public`
@@ -38,25 +50,43 @@
 - [x] Extracted template plugin initialization (WOW, prettyPhoto, Owl Carousel) from old `all.js` and added it to `custom.js`
 - [x] Preserved `page-template/` source files unchanged
 
+### Page Structure & CMS Planning
+- [x] Inspected `app/Views/portal/home.php` and `page-template/index.html`
+- [x] Mapped global layout components (head, loader, navigation, footer, scroll-to-top)
+- [x] Mapped homepage sections (hero, about, services, portfolio, testimonials, blog, contact)
+- [x] Documented editable fields, repeatable items, media references, and layout options
+- [x] Proposed reuse of planned modules: Articles, Media, Menus, and Settings
+- [x] Created `docs/PAGE_STRUCTURE.md` with component mapping, data relationships, implementation order, and unresolved decisions
+- [x] Updated `PROGRESS.md`
+
 ## Verification Results
-- [x] Homepage loads at `http://127.0.0.1:8081/`
+- [x] Homepage loads at `http://127.0.0.1:8081/` and public layout remains unchanged
 - [x] Desktop layout matches supplied template
 - [x] Navigation collapse toggles correctly via Bootstrap 5
 - [x] Smooth scrolling to anchors works
 - [x] Portfolio Isotope filters work (e.g. `.gal_a` shows 5 items)
 - [x] Testimonials Owl Carousel renders slides and responds to `next.owl.carousel`
 - [x] Browser console shows zero JavaScript errors and zero warnings
+- [x] Anonymous access to `/admin` redirects to `/admin/login`
+- [x] Invalid login returns to `/admin/login` with `Username atau kata sandi salah`
+- [x] Valid login redirects to `/admin` dashboard
+- [x] `POST /admin/logout` clears session and returns to login page
+- [x] Authenticated password change works and requires the old password
+- [x] CSRF tokens protect all forms; missing/mismatched tokens return 403
 
 ## Known Issues / Console Errors
 - One external resource fails in the offline sandbox: `https://fonts.googleapis.com/css?family=Roboto+Mono:300,400,500,700` (imported by `style.css`). This is a network limitation, not a code error.
+
+## Recent Fixes
+- Fixed `AdminLoginAttemptModel` to disable automatic timestamps, resolving an `Unknown column 'updated_at' in 'INSERT INTO'` error on failed login attempts.
 
 ## Unverified
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
 - [ ] Physical touch interactions on real mobile devices
 
 ## Pending (future tasks)
-- [ ] Database setup and migrations
-- [ ] Admin authentication and dashboard
+- [x] Database setup and migrations
+- [x] Admin authentication and dashboard
 - [ ] Category/tag CRUD
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish
