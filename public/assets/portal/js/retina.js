@@ -1,3 +1,5 @@
+(function() {
+var exports = {};
 /*!
  * Retina.js v2.1.0
  *
@@ -251,3 +253,4 @@ if (hasWindow) {
 }
 
 exports.default = retina;
+})();

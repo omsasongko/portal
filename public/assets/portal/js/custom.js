@@ -22,11 +22,14 @@
 
   // Closes responsive menu when a scroll trigger link is clicked
   $('.js-scroll-trigger').click(function () {
-    $('.navbar-collapse').collapse('hide');
+    var navbarCollapse = document.querySelector('.navbar-collapse');
+    if (navbarCollapse) {
+      bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+    }
   });
 
   // Activate scrollspy to add active class to navbar items on scroll
-  $('body').scrollspy({
+  new bootstrap.ScrollSpy(document.body, {
     target: '#mainNav',
     offset: 56
   });
@@ -158,5 +161,128 @@
       return false;
     });
   });
+
+  // WOW animations
+  if (typeof WOW !== 'undefined') {
+    new WOW({
+      boxClass: 'wow',
+      animateClass: 'animated',
+      offset: 0,
+      mobile: false,
+      live: true,
+      callback: function (box) {},
+      scrollContainer: null
+    }).init();
+  }
+
+  // Lightbox
+  $('a[data-gal]').each(function () {
+    $(this).attr('rel', $(this).data('gal'));
+  });
+  if ($.fn.prettyPhoto) {
+    $("a[data-rel^='prettyPhoto']").prettyPhoto({
+      animationSpeed: 'slow',
+      theme: 'light_square',
+      slideshow: true,
+      overlay_gallery: true,
+      social_tools: false,
+      deeplinking: false
+    });
+  }
+
+  // Owl Carousels
+  if ($.fn.owlCarousel) {
+    $('.owl-watch').owlCarousel({
+      loop: false,
+      margin: 0,
+      dots: false,
+      nav: true,
+      responsiveClass: true,
+      navText: [
+        "<i class='fa fa-angle-left effect-1'></i>",
+        "<i class='fa fa-angle-right effect-1'></i>"
+      ],
+      responsive: {
+        0: { nav: false, items: 1 },
+        600: { items: 3 },
+        1000: { items: 4 }
+      }
+    });
+
+    $('.owl-services').owlCarousel({
+      loop: false,
+      margin: 30,
+      dots: false,
+      nav: true,
+      responsiveClass: true,
+      navText: [
+        "<i class='fa fa-angle-left effect-1'></i>",
+        "<i class='fa fa-angle-right effect-1'></i>"
+      ],
+      responsive: {
+        0: { nav: false, items: 1 },
+        600: { items: 2 },
+        1000: { items: 3 }
+      }
+    });
+
+    $('.testi-carousel').owlCarousel({
+      loop: true,
+      margin: 30,
+      dots: true,
+      nav: true,
+      responsiveClass: true,
+      navText: [
+        "<i class='fa fa-angle-left effect-1'></i>",
+        "<i class='fa fa-angle-right effect-1'></i>"
+      ],
+      responsive: {
+        0: { items: 1, nav: true },
+        600: { items: 2, nav: true },
+        1000: { items: 2, loop: true },
+        1200: { items: 2, loop: true }
+      }
+    });
+
+    $('.owl-screenshots').owlCarousel({
+      loop: false,
+      margin: 30,
+      dots: false,
+      nav: true,
+      responsiveClass: true,
+      navText: [
+        "<i class='fa fa-angle-left effect-1'></i>",
+        "<i class='fa fa-angle-right effect-1'></i>"
+      ],
+      responsive: {
+        0: { items: 1 },
+        600: { items: 3 },
+        1000: { items: 4 }
+      }
+    });
+
+    $('.owl-app').owlCarousel({
+      loop: true,
+      margin: 0,
+      autoplay: true,
+      autoplayTimeout: 3000,
+      autoplayHoverPause: true,
+      dots: false,
+      animateIn: 'fadeIn',
+      animateOut: 'fadeOut',
+      nav: false,
+      responsiveClass: true,
+      navText: [
+        "<i class='fa fa-angle-left effect-1'></i>",
+        "<i class='fa fa-angle-right effect-1'></i>"
+      ],
+      responsive: {
+        0: { items: 1 },
+        600: { items: 1 },
+        1000: { items: 1 },
+        1200: { items: 1 }
+      }
+    });
+  }
 
 })(jQuery);

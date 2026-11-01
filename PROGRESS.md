@@ -27,21 +27,34 @@
 - [x] Removed fake `window.exports` guard
 - [x] Loaded `images-loded.min.js` before `custom.js` so Isotope/imagesLoaded works
 - [x] Patched `public/assets/portal/js/all.js` to wrap the bundled Retina script in an IIFE, eliminating the `exports is not defined` error
-- [x] Verified zero console errors and zero console warnings
-- [x] Verified navigation menu toggles on click
-- [x] Verified portfolio filter buttons trigger Isotope without errors
-- [x] Verified testimonials carousel renders with navigation controls
-- [x] Confirmed Bootstrap 4.1.1 is the active public Bootstrap version
+- [x] Decomposed `all.js` into separate scripts and kept jQuery (v1.12.4 extracted from the old bundle)
+
+### Bootstrap 5 Migration
+- [x] Identified Bootstrap 4.1.1 in `js/all.js` and Bootstrap 4.1.0 in `css/bootstrap.min.css`
+- [x] Replaced runtime Bootstrap CSS/JS with supplied local Bootstrap 5.3.8 assets
+- [x] Stopped loading the old `js/all.js` bundle (jQuery/Bootstrap 4/plugins bundle)
+- [x] Updated `app/Views/portal/home.php` markup: `data-toggle`→`data-bs-toggle`, `data-target`→`data-bs-target`, `ml-auto`→`ms-auto`, `text-left`→`text-start`, `img-rounded`→`rounded`, `hidden-xs`→`d-none d-sm-block`, `form-group`→`mb-3`, `help-block`→`form-text`
+- [x] Updated `public/assets/portal/js/custom.js` to use Bootstrap 5 APIs: `new bootstrap.ScrollSpy(...)` and `bootstrap.Collapse.getOrCreateInstance(...).hide()`
+- [x] Extracted template plugin initialization (WOW, prettyPhoto, Owl Carousel) from old `all.js` and added it to `custom.js`
+- [x] Preserved `page-template/` source files unchanged
+
+## Verification Results
+- [x] Homepage loads at `http://127.0.0.1:8081/`
+- [x] Desktop layout matches supplied template
+- [x] Navigation collapse toggles correctly via Bootstrap 5
+- [x] Smooth scrolling to anchors works
+- [x] Portfolio Isotope filters work (e.g. `.gal_a` shows 5 items)
+- [x] Testimonials Owl Carousel renders slides and responds to `next.owl.carousel`
+- [x] Browser console shows zero JavaScript errors and zero warnings
 
 ## Known Issues / Console Errors
-- None. Browser console is clean (no errors, no warnings).
+- One external resource fails in the offline sandbox: `https://fonts.googleapis.com/css?family=Roboto+Mono:300,400,500,700` (imported by `style.css`). This is a network limitation, not a code error.
 
 ## Unverified
-- [ ] Mobile viewport rendering (no browser tool support for viewport resizing in this session)
+- [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
 - [ ] Physical touch interactions on real mobile devices
 
 ## Pending (future tasks)
-- [ ] Bootstrap 5 migration for admin/public redesign (deferred)
 - [ ] Database setup and migrations
 - [ ] Admin authentication and dashboard
 - [ ] Category/tag CRUD
