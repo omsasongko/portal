@@ -61,9 +61,11 @@
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger active" href="#home">Home</a>
             </li>
+            <?php if ($aboutEnabled): ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#about">About Us</a>
             </li>
+            <?php endif; ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#services">Services</a>
             </li>
@@ -128,27 +130,61 @@
         </path>
     </svg>
 
+    <?php if ($aboutEnabled): ?>
     <div id="about" class="section wb">
         <div class="container">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="message-box">                        
-                        <h2>About Dominic.</h2>
-                        <p> Integer rutrum ligula eu dignissim laoreet. Pellentesque venenatis nibh sed tellus faucibus bibendum. Sed fermentum est vitae rhoncus molestie. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Sed vitae rutrum neque. Ut id erat sit amet libero bibendum aliquam. Donec ac egestas libero, eu bibendum risus. Phasellus et congue justo. </p>
-						<p>Sed vitae rutrum neque. Ut id erat sit amet libero bibendum aliquam. Donec ac egestas libero, eu bibendum risus. Phasellus et congue justo.</p>
+            <div class="row align-items-center">
+                <?php
+                $aboutLayout = $about['layout'] ?? 'image_right';
+                $textColClass = 'col-md-12';
+                $imageColClass = 'col-md-6';
+                if (in_array($aboutLayout, ['image_right', 'image_left'], true)) {
+                    $textColClass = 'col-md-6';
+                }
 
-                        <a href="#" class="sim-btn btn-hover-new" data-text="Download CV"><span>Download CV</span></a>
-                    </div><!-- end messagebox -->
-                </div><!-- end col -->
+                $textBlock = function () use ($about) {
+                    $body = nl2br(esc($about['body'] ?? ''));
+                    $buttonLabel = $about['button_label'] ?? '';
+                    $buttonLink = $about['button_link'] ?? '#';
+                    ob_start();
+                    ?>
+                    <div class="message-box">
+                        <h2><?= esc($about['heading'] ?? 'About') ?></h2>
+                        <p><?= $body ?></p>
+                        <?php if (! empty($buttonLabel)): ?>
+                            <a href="<?= esc($buttonLink) ?>" class="sim-btn btn-hover-new" data-text="<?= esc($buttonLabel) ?>"><span><?= esc($buttonLabel) ?></span></a>
+                        <?php endif; ?>
+                    </div>
+                    <?php
+                    return ob_get_clean();
+                };
 
-                <div class="col-md-6">
+                $imageBlock = function () use ($about) {
+                    if (($about['layout'] ?? 'image_right') === 'text_only') {
+                        return '';
+                    }
+                    ob_start();
+                    ?>
                     <div class="right-box-pro wow fadeIn">
-                        <img src="<?= base_url('assets/portal/uploads/about_04.jpg') ?>" alt="" class="img-fluid rounded">
-                    </div><!-- end media -->
-                </div><!-- end col -->
+                        <img src="<?= base_url($about['image'] ?? 'assets/portal/uploads/about_04.jpg') ?>" alt="<?= esc($about['image_alt'] ?? '') ?>" class="img-fluid rounded">
+                    </div>
+                    <?php
+                    return ob_get_clean();
+                };
+
+                if ($aboutLayout === 'image_left'): ?>
+                    <div class="<?= $imageColClass ?> order-md-1"><?= $imageBlock() ?></div>
+                    <div class="<?= $textColClass ?> order-md-2"><?= $textBlock() ?></div>
+                <?php elseif ($aboutLayout === 'image_right'): ?>
+                    <div class="<?= $textColClass ?> order-md-1"><?= $textBlock() ?></div>
+                    <div class="<?= $imageColClass ?> order-md-2"><?= $imageBlock() ?></div>
+                <?php else: ?>
+                    <div class="<?= $textColClass ?>"><?= $textBlock() ?></div>
+                <?php endif; ?>
             </div><!-- end row -->
         </div><!-- end container -->
     </div><!-- end section -->
+    <?php endif; ?>
 	
     <div id="services" class="section lb">
         <div class="container">

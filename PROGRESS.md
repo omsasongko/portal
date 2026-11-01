@@ -19,6 +19,15 @@
 
 ### Site Identity, Header & Hero Settings (Owner Accepted)
 - [x] Added additive migrations for `media`, `site_settings`, and `homepage_sections`
+
+### About Section (Ready for Owner Review)
+- [x] Added additive migration to seed `about` homepage section from existing content
+- [x] Reused `homepage_sections` storage and media upload/selection for About
+- [x] Added protected admin form at `/admin/settings/about` with Indonesian labels, validation, and CSRF
+- [x] Supported heading, body, image, image alt text, button label/link, layout (right/left/text-only), and visibility toggle
+- [x] Rendered saved About content on public homepage while preserving `#about` section, Bootstrap 5 layout, and interactions
+- [x] Hid About navigation anchor when section is disabled
+- [x] Verified saving, persistence, invalid input, anonymous access denial, and homepage rendering
 - [x] Seeded initial site identity (title, name, logo, favicon, apple-touch-icon, meta tags) and hero content from the existing homepage
 - [x] Created `SettingModel`, `MediaModel`, and `HomepageSectionModel`
 - [x] Created protected admin forms at `/admin/settings/identity` and `/admin/settings/hero` with Indonesian labels, server-side validation, and CSRF
@@ -102,6 +111,7 @@
 4. Test validation: leave required fields blank and confirm error messages.
 5. Test upload rejection: attempt to upload a `.php.jpg` file and confirm it is rejected.
 6. Resize browser to mobile width or use device emulation: confirm layout remains responsive and navigation collapses.
+7. **About section:** Login and open `/admin/settings/about`. Edit heading, body, image, alt text, button, and layout; save. Confirm the public homepage `#about` section reflects changes and the nav link appears/disappears based on the visibility toggle.
 
 ## Unverified
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
@@ -111,6 +121,7 @@
 - [x] Database setup and migrations
 - [x] Admin authentication and dashboard
 - [x] Site identity and hero settings
+- [x] About section (pending owner review/commit)
 - [ ] Category/tag CRUD
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish

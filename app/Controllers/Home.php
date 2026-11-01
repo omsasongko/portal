@@ -17,9 +17,15 @@ class Home extends BaseController
         $heroSection = $sectionModel->findSection('hero');
         $hero        = $heroSection ? json_decode($heroSection['content'], true) : [];
 
+        $aboutSection = $sectionModel->findSection('about');
+        $about        = $aboutSection ? json_decode($aboutSection['content'], true) : [];
+        $aboutEnabled = $aboutSection ? (bool) $aboutSection['is_enabled'] : false;
+
         return view('portal/home', [
-            'identity' => $identity,
-            'hero'     => $hero,
+            'identity'     => $identity,
+            'hero'         => $hero,
+            'about'        => $about,
+            'aboutEnabled' => $aboutEnabled,
         ]);
     }
 }

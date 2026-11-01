@@ -24,4 +24,6 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('settings/identity', 'Admin\Settings::doIdentity');
     $routes->get('settings/hero', 'Admin\Settings::hero');
     $routes->post('settings/hero', 'Admin\Settings::doHero');
+    $routes->get('settings/about', 'Admin\Settings::about');
+    $routes->post('settings/about', 'Admin\Settings::doAbout');
 });

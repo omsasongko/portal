@@ -156,6 +156,76 @@ class Settings extends BaseController
         return redirect()->to('/admin/settings/hero')->with('success', 'Pengaturan hero berhasil disimpan.');
     }
 
+    public function about()
+    {
+        $section = $this->sectionModel->findSection('about');
+        $content = $section ? json_decode($section['content'], true) : [];
+
+        return view('admin/settings_about', [
+            'title'   => 'Pengaturan About',
+            'about'   => $content,
+            'media'   => $this->mediaModel->findAll(),
+        ]);
+    }
+
+    public function doAbout()
+    {
+        $rules = [
+            'heading'      => 'required|max_length[255]',
+            'body'         => 'required|max_length[5000]',
+            'button_label' => 'permit_empty|max_length[100]',
+            'button_link'  => 'permit_empty|max_length[255]',
+            'layout'       => 'required|in_list[image_right,image_left,text_only]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $imageError = $this->validateImageUpload('about_image');
+        if ($imageError) {
+            return redirect()->back()->withInput()->with('errors', ['about_image' => $imageError]);
+        }
+
+        $imagePath = $this->resolveImagePath('about_image', $this->request->getPost('about_image') ?: $this->request->getPost('current_about_image'));
+
+        $buttonLink = $this->request->getPost('button_link');
+        if ($buttonLink && ! $this->isSafeUrl($buttonLink)) {
+            return redirect()->back()->withInput()->with('error', 'Link tombol tidak aman. Gunakan URL yang valid atau anchor.');
+        }
+
+        $content = [
+            'heading'      => $this->request->getPost('heading'),
+            'body'         => $this->request->getPost('body'),
+            'image'        => $imagePath,
+            'image_alt'    => $this->request->getPost('image_alt') ?? '',
+            'button_label' => $this->request->getPost('button_label'),
+            'button_link'  => $buttonLink,
+            'layout'       => $this->request->getPost('layout'),
+            'is_enabled'   => $this->request->getPost('is_enabled') ? true : false,
+        ];
+
+        $section = $this->sectionModel->findSection('about');
+        if ($section) {
+            $this->sectionModel->update($section['id'], [
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+                'layout'     => $content['layout'],
+                'is_enabled' => $content['is_enabled'] ? 1 : 0,
+            ]);
+        } else {
+            $this->sectionModel->insert([
+                'section'    => 'about',
+                'title'      => 'About',
+                'layout'     => $content['layout'],
+                'is_enabled' => $content['is_enabled'] ? 1 : 0,
+                'sort_order' => 1,
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        return redirect()->to('/admin/settings/about')->with('success', 'Pengaturan About berhasil disimpan.');
+    }
+
     protected function validateImageUpload(string $field): ?string
     {
         $file = $this->request->getFile($field);
