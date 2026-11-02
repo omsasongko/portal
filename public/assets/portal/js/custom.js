@@ -5,17 +5,36 @@
 (function ($) {
   "use strict";
 
+  var $scrollRoot = $('html, body');
+  var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Bootstrap 5 applies `scroll-behavior: smooth` to `:root` when motion is not
+  // reduced. That causes each per-frame `scrollTop` write from jQuery's animate()
+  // to start its own native smooth scroll, which makes navigation feel delayed
+  // and janky. Force instant programmatic scrolling so our JS animation stays
+  // fully controllable and responsive.
+  document.documentElement.style.scrollBehavior = 'auto';
 
   // Smooth scrolling using jQuery easing
-  $('a.js-scroll-trigger[href*="#"]:not([href="#"])').click(function () {
+  $('a.js-scroll-trigger[href*="#"]:not([href="#"])').click(function (e) {
     if (location.pathname.replace(/^\//, '') == this.pathname.replace(/^\//, '') && location.hostname == this.hostname) {
       var target = $(this.hash);
       target = target.length ? target : $('[name=' + this.hash.slice(1) + ']');
       if (target.length) {
-        $('html, body').animate({
-          scrollTop: (target.offset().top - 54)
-        }, 1000, "easeInOutExpo");
-        return false;
+        e.preventDefault();
+        var top = Math.max(target.offset().top - 54, 0);
+
+        // Cancel any in-progress or queued animation so rapid clicks respond
+        // immediately and only one navigation action is ever running.
+        $scrollRoot.stop(true);
+
+        if (prefersReducedMotion) {
+          // Respect reduced-motion: jump straight to the target.
+          $scrollRoot.scrollTop(top);
+        } else {
+          // Short, snappy scroll that starts moving on the first frame.
+          $scrollRoot.animate({ scrollTop: top }, 300, 'easeOutCubic');
+        }
       }
     }
   });
@@ -72,9 +91,12 @@
     });
     $('#scroll-to-top').on('click', function (e) {
       e.preventDefault();
-      $('html,body').animate({
-        scrollTop: 0
-      }, 700);
+      $scrollRoot.stop(true);
+      if (prefersReducedMotion) {
+        $scrollRoot.scrollTop(0);
+      } else {
+        $scrollRoot.animate({ scrollTop: 0 }, 300, 'easeOutCubic');
+      }
     });
   }
 
