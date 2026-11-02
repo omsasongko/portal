@@ -66,9 +66,11 @@
               <a class="nav-link js-scroll-trigger" href="#about">About Us</a>
             </li>
             <?php endif; ?>
+            <?php if ($servicesEnabled): ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#services">Services</a>
             </li>
+            <?php endif; ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#portfolio">Portfolio</a>
             </li>
@@ -186,71 +188,34 @@
     </div><!-- end section -->
     <?php endif; ?>
 	
+    <?php if ($servicesEnabled): ?>
     <div id="services" class="section lb">
         <div class="container">
             <div class="section-title text-start">
-                <h3>Services</h3>
-                <p>Quisque eget nisl id nulla sagittis auctor quis id. Aliquam quis vehicula enim, non aliquam risus.</p>
+                <h3><?= esc($services['title'] ?? 'Services') ?></h3>
+                <?php if (! empty($services['subtitle'])): ?>
+                <p><?= esc($services['subtitle']) ?></p>
+                <?php endif; ?>
             </div><!-- end title -->
 
             <div class="row">
-				<div class="col-md-4">
+            <?php
+            $servicesColClass = (($services['layout'] ?? 'grid_3_columns') === 'grid_2_columns') ? 'col-md-6' : 'col-md-4';
+            foreach ($servicesItems as $card): ?>
+                <div class="<?= $servicesColClass ?>">
                     <div class="services-inner-box">
-						<div class="ser-icon">
-							<i class="flaticon-seo"></i>
-						</div>
-						<h2>Web Development</h2>
-						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-					</div>
+                        <div class="ser-icon">
+                            <i class="<?= esc($card['icon'] ?? '') ?>"></i>
+                        </div>
+                        <h2><?= esc($card['title'] ?? '') ?></h2>
+                        <p><?= esc($card['description'] ?? '') ?></p>
+                    </div>
                 </div><!-- end col -->
-                <div class="col-md-4">
-                    <div class="services-inner-box">
-						<div class="ser-icon">
-							<i class="flaticon-development"></i>
-						</div>
-						<h2>Responsive Design</h2>
-						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-					</div>
-                </div><!-- end col -->
-				<div class="col-md-4">
-                    <div class="services-inner-box">
-						<div class="ser-icon">
-							<i class="flaticon-process"></i>
-						</div>
-						<h2>Creative Design</h2>
-						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-					</div>
-                </div><!-- end col -->
-				<div class="col-md-4">
-                    <div class="services-inner-box">
-						<div class="ser-icon">
-							<i class="flaticon-discuss-issue"></i>
-						</div>
-						<h2>Support</h2>
-						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-					</div>
-                </div><!-- end col -->
-				<div class="col-md-4">
-                    <div class="services-inner-box">
-						<div class="ser-icon">
-							<i class="flaticon-idea"></i>
-						</div>
-						<h2>Web Idea</h2>
-						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-					</div>
-                </div><!-- end col -->
-				<div class="col-md-4">
-                    <div class="services-inner-box">
-						<div class="ser-icon">
-							<i class="flaticon-idea-1"></i>
-						</div>
-						<h2>Graphic Design</h2>
-						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-					</div>
-                </div><!-- end col -->
+            <?php endforeach; ?>
             </div><!-- end row -->
         </div><!-- end container -->
     </div><!-- end section -->
+    <?php endif; ?>
 	
 	<div id="portfolio" class="section lb">
 		<div class="container">

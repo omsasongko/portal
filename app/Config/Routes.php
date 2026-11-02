@@ -26,4 +26,9 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('settings/hero', 'Admin\Settings::doHero');
     $routes->get('settings/about', 'Admin\Settings::about');
     $routes->post('settings/about', 'Admin\Settings::doAbout');
+    $routes->get('settings/services', 'Admin\Settings::services');
+    $routes->post('settings/services', 'Admin\Settings::doServices');
+    $routes->post('settings/services/card', 'Admin\Settings::serviceCardSave');
+    $routes->post('settings/services/card/delete', 'Admin\Settings::serviceCardDelete');
+    $routes->post('settings/services/reorder', 'Admin\Settings::serviceCardReorder');
 });

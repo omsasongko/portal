@@ -6,21 +6,33 @@ use App\Controllers\BaseController;
 use App\Models\SettingModel;
 use App\Models\MediaModel;
 use App\Models\HomepageSectionModel;
+use App\Models\HomepageSectionItemModel;
 
 class Settings extends BaseController
 {
     protected SettingModel $settingModel;
     protected MediaModel $mediaModel;
     protected HomepageSectionModel $sectionModel;
+    protected HomepageSectionItemModel $itemModel;
 
     protected array $imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'ico'];
     protected array $imageMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/x-icon', 'image/vnd.microsoft.icon'];
+
+    protected array $serviceIcons = [
+        'flaticon-seo'           => 'SEO',
+        'flaticon-development'   => 'Pengembangan (Development)',
+        'flaticon-process'       => 'Proses (Process)',
+        'flaticon-discuss-issue' => 'Diskusi (Discuss Issue)',
+        'flaticon-idea'          => 'Ide (Idea)',
+        'flaticon-idea-1'        => 'Ide Alt (Idea 1)',
+    ];
 
     public function __construct()
     {
         $this->settingModel = new SettingModel();
         $this->mediaModel   = new MediaModel();
         $this->sectionModel = new HomepageSectionModel();
+        $this->itemModel    = new HomepageSectionItemModel();
     }
 
     public function identity()
@@ -224,6 +236,218 @@ class Settings extends BaseController
         }
 
         return redirect()->to('/admin/settings/about')->with('success', 'Pengaturan About berhasil disimpan.');
+    }
+
+    public function services()
+    {
+        $section = $this->sectionModel->findSection('services');
+        $content = $section ? json_decode($section['content'], true) : [];
+
+        $items = [];
+        if ($section) {
+            foreach ($this->itemModel->findBySection((int) $section['id']) as $item) {
+                $item['data'] = json_decode($item['content'], true) ?: [];
+                $items[]      = $item;
+            }
+        }
+
+        $edit = null;
+        $editId = $this->request->getGet('edit');
+        if ($section && $editId && is_numeric($editId)) {
+            $editRow = $this->itemModel->find((int) $editId);
+            if ($editRow && (int) $editRow['section_id'] === (int) $section['id']) {
+                $data     = json_decode($editRow['content'], true) ?: [];
+                $edit     = [
+                    'id'          => (int) $editRow['id'],
+                    'icon'        => $data['icon'] ?? '',
+                    'title'       => $data['title'] ?? '',
+                    'description' => $data['description'] ?? '',
+                ];
+            }
+        }
+
+        return view('admin/settings_services', [
+            'title'           => 'Pengaturan Layanan',
+            'services'        => $content,
+            'items'           => $items,
+            'icons'           => $this->serviceIcons,
+            'edit'            => $edit,
+            'sectionEnabled'  => $section ? (bool) $section['is_enabled'] : true,
+        ]);
+    }
+
+    public function doServices()
+    {
+        $rules = [
+            'title'    => 'required|max_length[255]',
+            'subtitle' => 'permit_empty|max_length[1000]',
+            'layout'   => 'required|in_list[grid_3_columns,grid_2_columns]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $content = [
+            'title'    => $this->request->getPost('title'),
+            'subtitle' => $this->request->getPost('subtitle') ?? '',
+            'layout'   => $this->request->getPost('layout'),
+        ];
+        $isEnabled = $this->request->getPost('is_enabled') ? 1 : 0;
+
+        $section = $this->sectionModel->findSection('services');
+        if ($section) {
+            $this->sectionModel->update($section['id'], [
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+                'layout'     => $content['layout'],
+                'is_enabled' => $isEnabled,
+            ]);
+        } else {
+            $this->sectionModel->insert([
+                'section'    => 'services',
+                'title'      => 'Services',
+                'layout'     => $content['layout'],
+                'is_enabled' => $isEnabled,
+                'sort_order' => 2,
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        return redirect()->to('/admin/settings/services')->with('success', 'Pengaturan layanan berhasil disimpan.');
+    }
+
+    public function serviceCardSave()
+    {
+        $iconList = implode(',', array_keys($this->serviceIcons));
+        $rules = [
+            'card_id'     => 'permit_empty|is_natural_no_zero',
+            'icon'        => 'required|in_list[' . $iconList . ']',
+            'card_title'  => 'required|max_length[100]',
+            'description' => 'required|max_length[1000]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $section = $this->sectionModel->findSection('services');
+        $sectionId = $section ? (int) $section['id'] : null;
+
+        if (! $sectionId) {
+            return redirect()->to('/admin/settings/services')->with('error', 'Bagian layanan belum tersedia.');
+        }
+
+        $data = [
+            'icon'        => $this->request->getPost('icon'),
+            'title'       => $this->request->getPost('card_title'),
+            'description' => $this->request->getPost('description'),
+        ];
+
+        $cardId = $this->request->getPost('card_id');
+
+        if ($cardId) {
+            $existing = $this->itemModel->find((int) $cardId);
+            if (! $existing || (int) $existing['section_id'] !== $sectionId) {
+                return redirect()->back()->with('error', 'Kartu layanan tidak ditemukan.');
+            }
+
+            $this->itemModel->update((int) $cardId, ['content' => json_encode($data, JSON_UNESCAPED_UNICODE)]);
+            $message = 'Kartu layanan berhasil diperbarui.';
+        } else {
+            $position = $this->itemModel->maxPosition($sectionId) + 1;
+            $this->itemModel->insert([
+                'section_id' => $sectionId,
+                'position'   => $position,
+                'content'    => json_encode($data, JSON_UNESCAPED_UNICODE),
+            ]);
+            $message = 'Kartu layanan berhasil ditambahkan.';
+        }
+
+        return redirect()->to('/admin/settings/services')->with('success', $message);
+    }
+
+    public function serviceCardDelete()
+    {
+        $cardId = $this->request->getPost('card_id');
+
+        if (! $cardId || ! is_numeric($cardId)) {
+            return redirect()->back()->with('error', 'Kartu layanan tidak valid.');
+        }
+
+        $section = $this->sectionModel->findSection('services');
+        $sectionId = $section ? (int) $section['id'] : null;
+
+        $existing = $sectionId ? $this->itemModel->find((int) $cardId) : null;
+        if (! $existing || (int) $existing['section_id'] !== $sectionId) {
+            return redirect()->back()->with('error', 'Kartu layanan tidak ditemukan.');
+        }
+
+        $this->itemModel->delete((int) $cardId);
+
+        // Reindex remaining positions to keep them contiguous.
+        $this->renumberPositions($sectionId);
+
+        return redirect()->to('/admin/settings/services')->with('success', 'Kartu layanan berhasil dihapus.');
+    }
+
+    public function serviceCardReorder()
+    {
+        $order = $this->request->getPost('order');
+
+        if (! is_array($order)) {
+            return redirect()->back()->with('error', 'Urutan tidak valid.');
+        }
+
+        $section = $this->sectionModel->findSection('services');
+        if (! $section) {
+            return redirect()->to('/admin/settings/services')->with('error', 'Bagian layanan tidak ditemukan.');
+        }
+        $sectionId = (int) $section['id'];
+
+        $ids = [];
+        foreach ($order as $id) {
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        if (! $ids) {
+            return redirect()->back()->with('error', 'Urutan tidak valid.');
+        }
+
+        // Ensure every id belongs to this section and de-duplicate.
+        $existing = $this->itemModel->where('section_id', $sectionId)->findAll();
+        $existingIds = array_map(fn ($row) => (int) $row['id'], $existing);
+        $ids = array_values(array_unique($ids));
+        foreach ($ids as $id) {
+            if (! in_array($id, $existingIds, true)) {
+                return redirect()->back()->with('error', 'Kartu layanan tidak ditemukan.');
+            }
+        }
+
+        $position = 1;
+        foreach ($ids as $id) {
+            $this->itemModel->update($id, ['position' => $position]);
+            $position++;
+        }
+
+        // Append any items not included in the submitted order.
+        foreach ($existingIds as $id) {
+            if (! in_array($id, $ids, true)) {
+                $this->itemModel->update($id, ['position' => $position]);
+                $position++;
+            }
+        }
+
+        return redirect()->to('/admin/settings/services')->with('success', 'Urutan kartu layanan berhasil diperbarui.');
+    }
+
+    protected function renumberPositions(int $sectionId): void
+    {
+        $items = $this->itemModel->findBySection($sectionId);
+        foreach (array_values($items) as $index => $item) {
+            $this->itemModel->update($item['id'], ['position' => $index + 1]);
+        }
     }
 
     protected function validateImageUpload(string $field): ?string

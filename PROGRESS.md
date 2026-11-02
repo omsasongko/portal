@@ -1,7 +1,7 @@
 # Portal — Progress Log
 
 ## Last Updated
-2026-11-01
+2026-11-02
 
 ## Completed
 
@@ -34,6 +34,16 @@
 - [x] Implemented validated image upload/selection for logo, favicon, apple-touch-icon, and hero background; rejected non-image/executable uploads
 - [x] Rendered saved settings on the public homepage with output escaping; preserved Bootstrap 5 and responsive behavior
 - [x] Updated dashboard to show real counts for implemented settings/hero modules and disabled links for unavailable modules
+
+### Services Section (Owner Accepted)
+- [x] Added additive migration creating `homepage_section_items` table and seeding the `services` section + 6 default cards from existing content
+- [x] Added `HomepageSectionItemModel` for service card storage
+- [x] Added protected admin screen at `/admin/settings/services` with Indonesian labels, validation, and CSRF
+- [x] Supported section title, subtitle, layout (2/3 columns), and visibility toggle
+- [x] Supported service card add/edit/delete/ordering via a predefined icon allowlist (no arbitrary HTML)
+- [x] Rendered saved Services content on public homepage while preserving `#services` section, Bootstrap 5 layout, and interactions
+- [x] Hid Services navigation anchor when section is disabled
+- [x] Verified CRUD, ordering, persistence, validation, anonymous access denial, and public rendering
 
 ### Environment / Infrastructure
 - [x] Apache 2.4.69 configured for Portal on `127.0.0.1:8081`
@@ -112,6 +122,7 @@
 5. Test upload rejection: attempt to upload a `.php.jpg` file and confirm it is rejected.
 6. Resize browser to mobile width or use device emulation: confirm layout remains responsive and navigation collapses.
 7. **About section:** Login and open `/admin/settings/about`. Edit heading, body, image, alt text, button, and layout; save. Confirm the public homepage `#about` section reflects changes and the nav link appears/disappears based on the visibility toggle.
+8. **Services section:** Login and open `/admin/settings/services`. Edit section title/subtitle/layout and visibility; add, edit, delete, and reorder service cards using the icon dropdown. Confirm the public homepage `#services` section reflects changes and the nav link disappears when the section is hidden.
 
 ## Unverified
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
@@ -122,6 +133,7 @@
 - [x] Admin authentication and dashboard
 - [x] Site identity and hero settings
 - [x] About section (pending owner review/commit)
+- [x] Services section (Owner Accepted)
 - [ ] Category/tag CRUD
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish
