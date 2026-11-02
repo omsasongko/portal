@@ -59,7 +59,8 @@
 - [x] Verified section/category/item CRUD, ordering, persistence, filtering, visibility, validation, anonymous access denial, and homepage rendering
 - [x] Owner reported Portfolio functionality is working (2026-11-02)
 
-### Navigation Responsiveness (fix)
+### Navigation Responsiveness (Owner Accepted)
+- [x] Owner accepted the navigation responsiveness fix (2026-11-02).
 - [x] Root cause: the top-nav smooth-scroll ran a **1000 ms** jQuery animation with the `easeInOutExpo` easing, whose leading edge is nearly flat, plus Bootstrap 5's `scroll-behavior: smooth` on `:root` (active under `prefers-reduced-motion: no-preference`) re-smoothed every per-frame `scrollTop` write. Measured effect before the fix: ~950 ms of zero movement after click, then a fast rush.
 - [x] Shortened the animation to **300 ms** and switched to `easeOutCubic` (moves on the first frame).
 - [x] Cancelled any in-progress/queued animation with `.stop(true)` so rapid clicks respond immediately and only one navigation action runs.
