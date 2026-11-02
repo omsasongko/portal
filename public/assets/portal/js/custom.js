@@ -248,22 +248,28 @@
       }
     });
 
-    $('.testi-carousel').owlCarousel({
-      loop: true,
-      margin: 30,
-      dots: true,
-      nav: true,
-      responsiveClass: true,
-      navText: [
-        "<i class='fa fa-angle-left effect-1'></i>",
-        "<i class='fa fa-angle-right effect-1'></i>"
-      ],
-      responsive: {
-        0: { items: 1, nav: true },
-        600: { items: 2, nav: true },
-        1000: { items: 2, loop: true },
-        1200: { items: 2, loop: true }
+    $('.testi-carousel').each(function () {
+      var perSlide = parseInt($(this).attr('data-per-slide') || '2', 10);
+      if (isNaN(perSlide) || perSlide < 1) {
+        perSlide = 2;
       }
+      $(this).owlCarousel({
+        loop: true,
+        margin: 30,
+        dots: true,
+        nav: true,
+        responsiveClass: true,
+        navText: [
+          "<i class='fa fa-angle-left effect-1'></i>",
+          "<i class='fa fa-angle-right effect-1'></i>"
+        ],
+        responsive: {
+          0: { items: 1, nav: true },
+          600: { items: perSlide === 1 ? 1 : 2, nav: true },
+          1000: { items: perSlide, loop: true },
+          1200: { items: perSlide, loop: true }
+        }
+      });
     });
 
     $('.owl-screenshots').owlCarousel({

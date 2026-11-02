@@ -786,6 +786,217 @@ class Settings extends BaseController
         }
     }
 
+    public function testimonials()
+    {
+        $section = $this->sectionModel->findSection('testimonials');
+        $content = $section ? json_decode($section['content'], true) : [];
+
+        $items = [];
+        if ($section) {
+            foreach ($this->itemModel->findBySection((int) $section['id']) as $item) {
+                $item['data'] = json_decode($item['content'], true) ?: [];
+                $items[]      = $item;
+            }
+        }
+
+        $edit = null;
+        $editId = $this->request->getGet('edit');
+        if ($section && $editId && is_numeric($editId)) {
+            $editRow = $this->itemModel->find((int) $editId);
+            if ($editRow && (int) $editRow['section_id'] === (int) $section['id']) {
+                $data = json_decode($editRow['content'], true) ?: [];
+                $edit = [
+                    'id'            => (int) $editRow['id'],
+                    'quote_heading' => $data['quote_heading'] ?? '',
+                    'quote_body'    => $data['quote_body'] ?? '',
+                    'author_name'   => $data['author_name'] ?? '',
+                    'author_role'   => $data['author_role'] ?? '',
+                    'avatar'        => $data['avatar'] ?? '',
+                ];
+            }
+        }
+
+        return view('admin/settings_testimonials', [
+            'title'          => 'Pengaturan Testimoni',
+            'testimonials'   => $content,
+            'items'          => $items,
+            'media'          => $this->mediaModel->findAll(),
+            'edit'           => $edit,
+            'sectionEnabled' => $section ? (bool) $section['is_enabled'] : true,
+        ]);
+    }
+
+    public function doTestimonials()
+    {
+        $rules = [
+            'title'    => 'required|max_length[255]',
+            'subtitle' => 'permit_empty|max_length[1000]',
+            'layout'   => 'required|in_list[carousel_2_per_slide,carousel_1_per_slide]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $content = [
+            'title'    => $this->request->getPost('title'),
+            'subtitle' => $this->request->getPost('subtitle') ?? '',
+            'layout'   => $this->request->getPost('layout'),
+        ];
+        $isEnabled = $this->request->getPost('is_enabled') ? 1 : 0;
+
+        $section = $this->sectionModel->findSection('testimonials');
+        if ($section) {
+            $this->sectionModel->update($section['id'], [
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+                'layout'     => $content['layout'],
+                'is_enabled' => $isEnabled,
+            ]);
+        } else {
+            $this->sectionModel->insert([
+                'section'    => 'testimonials',
+                'title'      => 'Testimonials',
+                'layout'     => $content['layout'],
+                'is_enabled' => $isEnabled,
+                'sort_order' => 4,
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        return redirect()->to('/admin/settings/testimonials')->with('success', 'Pengaturan testimoni berhasil disimpan.');
+    }
+
+    public function testimonialSave()
+    {
+        $rules = [
+            'item_id'       => 'permit_empty|is_natural_no_zero',
+            'quote_heading' => 'permit_empty|max_length[200]',
+            'quote_body'    => 'required|max_length[1000]',
+            'author_name'   => 'required|max_length[100]',
+            'author_role'   => 'permit_empty|max_length[100]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $section = $this->sectionModel->findSection('testimonials');
+        $sectionId = $section ? (int) $section['id'] : null;
+
+        if (! $sectionId) {
+            return redirect()->to('/admin/settings/testimonials')->with('error', 'Bagian testimoni belum tersedia.');
+        }
+
+        $avatarError = $this->validateImageUpload('avatar');
+        if ($avatarError) {
+            return redirect()->back()->withInput()->with('errors', ['avatar' => $avatarError]);
+        }
+
+        $avatar = $this->resolveImagePath('avatar', $this->request->getPost('avatar') ?: $this->request->getPost('current_avatar'));
+
+        $data = [
+            'quote_heading' => $this->request->getPost('quote_heading') ?? '',
+            'quote_body'    => $this->request->getPost('quote_body'),
+            'author_name'   => $this->request->getPost('author_name'),
+            'author_role'   => $this->request->getPost('author_role') ?? '',
+            'avatar'        => $avatar,
+        ];
+
+        $itemId = $this->request->getPost('item_id');
+
+        if ($itemId) {
+            $existing = $this->itemModel->find((int) $itemId);
+            if (! $existing || (int) $existing['section_id'] !== $sectionId) {
+                return redirect()->back()->with('error', 'Testimoni tidak ditemukan.');
+            }
+
+            $this->itemModel->update((int) $itemId, ['content' => json_encode($data, JSON_UNESCAPED_UNICODE)]);
+            $message = 'Testimoni berhasil diperbarui.';
+        } else {
+            $position = $this->itemModel->maxPosition($sectionId) + 1;
+            $this->itemModel->insert([
+                'section_id' => $sectionId,
+                'position'   => $position,
+                'content'    => json_encode($data, JSON_UNESCAPED_UNICODE),
+            ]);
+            $message = 'Testimoni berhasil ditambahkan.';
+        }
+
+        return redirect()->to('/admin/settings/testimonials')->with('success', $message);
+    }
+
+    public function testimonialDelete()
+    {
+        $itemId = $this->request->getPost('item_id');
+
+        if (! $itemId || ! is_numeric($itemId)) {
+            return redirect()->back()->with('error', 'Testimoni tidak valid.');
+        }
+
+        $section = $this->sectionModel->findSection('testimonials');
+        $sectionId = $section ? (int) $section['id'] : null;
+
+        $existing = $sectionId ? $this->itemModel->find((int) $itemId) : null;
+        if (! $existing || (int) $existing['section_id'] !== $sectionId) {
+            return redirect()->back()->with('error', 'Testimoni tidak ditemukan.');
+        }
+
+        // Remove only the testimonial row; the shared avatar/media file is preserved.
+        $this->itemModel->delete((int) $itemId);
+        $this->renumberPositions($sectionId);
+
+        return redirect()->to('/admin/settings/testimonials')->with('success', 'Testimoni berhasil dihapus.');
+    }
+
+    public function testimonialReorder()
+    {
+        $order = $this->request->getPost('order');
+
+        if (! is_array($order)) {
+            return redirect()->back()->with('error', 'Urutan tidak valid.');
+        }
+
+        $section = $this->sectionModel->findSection('testimonials');
+        if (! $section) {
+            return redirect()->to('/admin/settings/testimonials')->with('error', 'Bagian testimoni tidak ditemukan.');
+        }
+        $sectionId = (int) $section['id'];
+
+        $ids = [];
+        foreach ($order as $id) {
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        if (! $ids) {
+            return redirect()->back()->with('error', 'Urutan tidak valid.');
+        }
+
+        $existing = $this->itemModel->where('section_id', $sectionId)->findAll();
+        $existingIds = array_map(fn ($row) => (int) $row['id'], $existing);
+        $ids = array_values(array_unique($ids));
+        foreach ($ids as $id) {
+            if (! in_array($id, $existingIds, true)) {
+                return redirect()->back()->with('error', 'Testimoni tidak ditemukan.');
+            }
+        }
+
+        $position = 1;
+        foreach ($ids as $id) {
+            $this->itemModel->update($id, ['position' => $position]);
+            $position++;
+        }
+        foreach ($existingIds as $id) {
+            if (! in_array($id, $ids, true)) {
+                $this->itemModel->update($id, ['position' => $position]);
+                $position++;
+            }
+        }
+
+        return redirect()->to('/admin/settings/testimonials')->with('success', 'Urutan testimoni berhasil diperbarui.');
+    }
+
     protected function validateImageUpload(string $field): ?string
     {
         $file = $this->request->getFile($field);

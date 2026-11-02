@@ -38,4 +38,17 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('settings/portfolio/item', 'Admin\Settings::portfolioItemSave');
     $routes->post('settings/portfolio/item/delete', 'Admin\Settings::portfolioItemDelete');
     $routes->post('settings/portfolio/item/reorder', 'Admin\Settings::portfolioItemReorder');
+    $routes->get('settings/testimonials', 'Admin\Settings::testimonials');
+    $routes->post('settings/testimonials', 'Admin\Settings::doTestimonials');
+    $routes->post('settings/testimonials/card', 'Admin\Settings::testimonialSave');
+    $routes->post('settings/testimonials/card/delete', 'Admin\Settings::testimonialDelete');
+    $routes->post('settings/testimonials/reorder', 'Admin\Settings::testimonialReorder');
+
+    // Article taxonomy (categories and tags)
+    $routes->get('categories', 'Admin\Categories::index');
+    $routes->post('categories/save', 'Admin\Categories::save');
+    $routes->post('categories/delete', 'Admin\Categories::delete');
+    $routes->get('tags', 'Admin\Tags::index');
+    $routes->post('tags/save', 'Admin\Tags::save');
+    $routes->post('tags/delete', 'Admin\Tags::delete');
 });

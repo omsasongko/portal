@@ -76,9 +76,11 @@
               <a class="nav-link js-scroll-trigger" href="#portfolio">Portfolio</a>
             </li>
             <?php endif; ?>
+            <?php if ($testimonialsEnabled): ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#testimonials">Testimonials</a>
             </li>
+            <?php endif; ?>
 			<li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#blog">Blog</a>
             </li>
@@ -275,98 +277,43 @@
 		</div>
 	</div>
 	<?php endif; ?>
+<?php if ($testimonialsEnabled): ?>
 <div id="testimonials" class="section wb">
         <div class="container">
             <div class="section-title text-start">
-                <h3>Testimonials</h3>
-                <p>We thanks for all our awesome testimonials! There are hundreds of our happy customers! </p>
+                <h3><?= esc($testimonials['title'] ?? 'Testimonials') ?></h3>
+                <?php if (! empty($testimonials['subtitle'])): ?>
+                <p><?= esc($testimonials['subtitle']) ?></p>
+                <?php endif; ?>
             </div><!-- end title -->
 
             <div class="row">
                 <div class="col-md-12 col-sm-12">
-                    <div class="testi-carousel owl-carousel owl-theme">
+                    <?php $perSlide = (($testimonials['layout'] ?? 'carousel_2_per_slide') === 'carousel_1_per_slide') ? 1 : 2; ?>
+                    <div class="testi-carousel owl-carousel owl-theme" data-per-slide="<?= $perSlide ?>">
+                        <?php foreach ($testimonialItems as $t): ?>
                         <div class="testimonial clearfix">
                             <div class="desc">
-                                <h3><i class="fa fa-quote-left"></i> Wonderful Support!</h3>
-                                <p class="lead">They have got my project on time with the competition with a sed highly skilled, and experienced & professional team.</p>
+                                <h3><i class="fa fa-quote-left"></i> <?= esc($t['quote_heading'] ?? '') ?></h3>
+                                <p class="lead"><?= esc($t['quote_body'] ?? '') ?></p>
                             </div>
                             <div class="testi-meta">
-                                <img src="<?= base_url('assets/portal/uploads/testi_01.png') ?>" alt="" class="img-fluid alignleft">
-                                <h4>James Fernando <small>- Manager of Racer</small></h4>
+                                <?php if (! empty($t['avatar'])): ?>
+                                <img src="<?= base_url($t['avatar']) ?>" alt="" class="img-fluid alignleft">
+                                <?php endif; ?>
+                                <h4><?= esc($t['author_name'] ?? '') ?><?php if (! empty($t['author_role'])): ?> <small>- <?= esc($t['author_role']) ?></small><?php endif; ?></h4>
                             </div>
                             <!-- end testi-meta -->
                         </div>
                         <!-- end testimonial -->
-
-                        <div class="testimonial clearfix">
-                            <div class="desc">
-                                <h3><i class="fa fa-quote-left"></i> Awesome Services!</h3>
-                                <p class="lead">Explain to you how all this mistaken idea of denouncing pleasure and praising pain was born and I will give you completed.</p>
-                            </div>
-                            <div class="testi-meta">
-                                <img src="<?= base_url('assets/portal/uploads/testi_02.png') ?>" alt="" class="img-fluid alignleft">
-                                <h4>Jacques Philips <small>- Designer</small></h4>
-                            </div>
-                            <!-- end testi-meta -->
-                        </div>
-                        <!-- end testimonial -->
-
-                        <div class="testimonial clearfix">
-                            <div class="desc">
-                                <h3><i class="fa fa-quote-left"></i> Great & Talented Team!</h3>
-                                <p class="lead">The master-builder of human happines no one rejects, dislikes avoids pleasure itself, because it is very pursue pleasure. </p>
-                            </div>
-                            <div class="testi-meta">
-                                <img src="<?= base_url('assets/portal/uploads/testi_03.png') ?>" alt="" class="img-fluid alignleft">
-                                <h4>Venanda Mercy <small>- Newyork City</small></h4>
-                            </div>
-                            <!-- end testi-meta -->
-                        </div>
-                        <!-- end testimonial -->
-                        <div class="testimonial clearfix">
-                            <div class="desc">
-                                <h3><i class="fa fa-quote-left"></i> Wonderful Support!</h3>
-                                <p class="lead">They have got my project on time with the competition with a sed highly skilled, and experienced & professional team.</p>
-                            </div>
-                            <div class="testi-meta">
-                                <img src="<?= base_url('assets/portal/uploads/testi_01.png') ?>" alt="" class="img-fluid alignleft">
-                                <h4>James Fernando <small>- Manager of Racer</small></h4>
-                            </div>
-                            <!-- end testi-meta -->
-                        </div>
-                        <!-- end testimonial -->
-
-                        <div class="testimonial clearfix">
-                            <div class="desc">
-                                <h3><i class="fa fa-quote-left"></i> Awesome Services!</h3>
-                                <p class="lead">Explain to you how all this mistaken idea of denouncing pleasure and praising pain was born and I will give you completed.</p>
-                            </div>
-                            <div class="testi-meta">
-                                <img src="<?= base_url('assets/portal/uploads/testi_02.png') ?>" alt="" class="img-fluid alignleft">
-                                <h4>Jacques Philips <small>- Designer</small></h4>
-                            </div>
-                            <!-- end testi-meta -->
-                        </div>
-                        <!-- end testimonial -->
-
-                        <div class="testimonial clearfix">
-                            <div class="desc">
-                                <h3><i class="fa fa-quote-left"></i> Great & Talented Team!</h3>
-                                <p class="lead">The master-builder of human happines no one rejects, dislikes avoids pleasure itself, because it is very pursue pleasure. </p>
-                            </div>
-                            <div class="testi-meta">
-                                <img src="<?= base_url('assets/portal/uploads/testi_03.png') ?>" alt="" class="img-fluid alignleft">
-                                <h4>Venanda Mercy <small>- Newyork City</small></h4>
-                            </div>
-                            <!-- end testi-meta -->
-                        </div><!-- end testimonial -->
+                        <?php endforeach; ?>
                     </div><!-- end carousel -->
                 </div><!-- end col -->
             </div><!-- end row -->
         </div><!-- end container -->
     </div><!-- end section -->
-	
-	<div id="blog" class="section lb">
+    <?php endif; ?>
+<div id="blog" class="section lb">
 		<div class="container">
 			<div class="section-title text-start">
                 <h3>Blog</h3>

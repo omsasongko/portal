@@ -37,7 +37,14 @@ $session = session();
                             <li><a class="dropdown-item" href="<?= base_url('admin/settings/about') ?>">About</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('admin/settings/services') ?>">Layanan</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('admin/settings/portfolio') ?>">Portofolio</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('admin/settings/testimonials') ?>">Testimoni</a></li>
                         </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= base_url('admin/categories') ?>">Kategori</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= base_url('admin/tags') ?>">Tag</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= base_url('admin/change-password') ?>">Ubah Kata Sandi</a>

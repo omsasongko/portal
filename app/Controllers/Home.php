@@ -52,6 +52,16 @@ class Home extends BaseController
             }
         }
 
+        $testimonialsSection = $sectionModel->findSection('testimonials');
+        $testimonials        = $testimonialsSection ? json_decode($testimonialsSection['content'], true) : [];
+        $testimonialsEnabled = $testimonialsSection ? (bool) $testimonialsSection['is_enabled'] : false;
+        $testimonialItems    = [];
+        if ($testimonialsSection) {
+            foreach ($itemModel->findBySection((int) $testimonialsSection['id']) as $item) {
+                $testimonialItems[] = json_decode($item['content'], true) ?: [];
+            }
+        }
+
         return view('portal/home', [
             'identity'            => $identity,
             'hero'                => $hero,
@@ -64,6 +74,9 @@ class Home extends BaseController
             'portfolioEnabled'    => $portfolioEnabled,
             'portfolioCategories' => $portfolioCategories,
             'portfolioItems'      => $portfolioItems,
+            'testimonials'        => $testimonials,
+            'testimonialsEnabled' => $testimonialsEnabled,
+            'testimonialItems'    => $testimonialItems,
         ]);
     }
 }

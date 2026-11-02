@@ -3,6 +3,9 @@
 ## Last Updated
 2026-11-02
 
+## Status
+Development paused after owner acceptance of Categories and Tags. All completed modules below are committed/pushed to `origin/main`. Next planned milestone is Article management; not yet started.
+
 ## Completed
 
 ### CMS Foundation
@@ -67,6 +70,29 @@
 - [x] Forced `document.documentElement.style.scrollBehavior = 'auto'` so jQuery's per-frame scroll writes stay instant (no double-smoothing).
 - [x] Respected `prefers-reduced-motion: reduce` by jumping straight to the target.
 - [x] Applied the same treatment to the scroll-to-top button.
+
+### Testimonials Section (Ready for Owner Review)
+- [x] Added additive migration `2026-11-02-153500_CreateTestimonialsSeed.php` seeding the `testimonials` section (`sort_order = 4`) + 6 default cards from existing content, plus 3 shared avatar media rows (guarded — no overwrite of saved data)
+- [x] Reused `homepage_section_items` storage (no new tables); card content JSON keys `quote_heading`, `quote_body`, `author_name`, `author_role`, `avatar`
+- [x] Added protected admin screen at `/admin/settings/testimonials` with Indonesian labels, server-side validation, and CSRF
+- [x] Supported section title, subtitle, layout (`carousel_2_per_slide` default / `carousel_1_per_slide`), and visibility toggle
+- [x] Supported testimonial card add/edit/delete/ordering with avatar via the shared media selector/upload
+- [x] Deleting a testimonial removes only the item row, never the shared media/avatar file
+- [x] Rendered saved Testimonials content on the public homepage while preserving `#testimonials`, Bootstrap 5 layout, and the Owl Carousel loop
+- [x] `carousel_1_per_slide` emits `data-per-slide="1"`; `custom.js` reads it per carousel via `.each()`
+- [x] Hid the Testimonials navigation anchor when the section is disabled
+- [x] Home controller loads the section + items for public rendering
+
+### Article Categories & Tags (Owner Accepted)
+- [x] Owner accepted Categories and Tags management (2026-11-02).
+- [x] Added additive migration `2026-11-02-165327_CreateCategoriesTags.php` creating `categories` and `tags` tables (id, name, unique slug, optional description, timestamps) — separate from `portfolio_categories`
+- [x] Added `CategoryModel` and `TagModel`
+- [x] Added protected admin screens at `/admin/categories` and `/admin/tags` with Indonesian labels, server-side validation, CSRF, and esc() output
+- [x] Supported name (required), unique slug, and optional description for both; slug auto-generated from name when blank and editable
+- [x] Renaming does not silently change an existing slug (slug field is pre-filled and preserved on edit)
+- [x] Slug normalized lowercase (`mb_url_title`), validated `^[a-z0-9]+(?:-[a-z0-9]+)*$`, and uniqueness enforced (excluding self)
+- [x] Deletion is blocked while referenced via a `tableExists()` guard against future `articles.category_id` / `article_tags.tag_id` (per task requirement; not yet exercisable because those tables do not exist)
+- [x] Added admin navigation links: "Kategori" and "Tag" in the admin sidebar nav
 
 ### Environment / Infrastructure
 - [x] Apache 2.4.69 configured for Portal on `127.0.0.1:8081`
@@ -143,9 +169,27 @@
 - [x] Portfolio Isotope filter verified (`.gal_b` shows 3 items, hides 3) and prettyPhoto `data-rel` overlays intact (6)
 - [x] Hidden-section handling: `#services` is absent from nav while disabled and nothing dangling; all rendered anchors resolve to a real element
 - [x] Browser console shows zero errors and zero warnings after navigation and filtering
+- [x] Testimonials migration seeds 6 cards (item ids 9–14, section_id 5) and 3 avatar media rows without overwriting existing data
+- [x] Testimonials section save (title "Kata Mereka", layout `carousel_1_per_slide`) persists; `data-per-slide` switches 2→1 then restored to 2
+- [x] Testimonial card add registers avatar upload in `media`; edit updates content; reorder updates positions; delete removes only the row (media row + file preserved)
+- [x] Testimonials validation rejects empty `quote_body`/`author_name` and invalid `layout` (`in_list`)
+- [x] Avatar upload rejects a `.php` payload ("… tidak diizinkan"); valid PNG accepted
+- [x] Anonymous GET `/admin/settings/testimonials` → 302 login; POST → 403
+- [x] Visibility toggle hides both the nav anchor and the `#testimonials` section when disabled
+- [x] Browser shows `.owl-loaded`, `owlItemsPerSlideSettings: 2`, 12 `.testimonial` nodes (6 + Owl loop clones), 0 console errors/warnings
+- [ ] Scrollspy active-menu highlighting: confirmed correct with fully-settled scrolling (direct `scrollTo` and nav-click both yield `#home`/`#about`/`#testimonials`/`#contact` after ~1.6 s). An earlier short-settle (~450–600 ms) automation read `.active` stuck on `#home`; this did not reproduce with adequate settle time and is attributed to a measurement timing artifact, not a code regression. No code change was required, and this remains not fully eliminated (see Known Issues).
+- [x] Categories/tags migration creates `categories` and `tags` tables with a unique `slug`; empty at first run (no seed), no `portfolio_categories` impact
+- [x] Category create with blank slug auto-generates `web-development`; tag create with blank slug auto-generates `teknologi`
+- [x] Duplicate slug rejected for both ("Slug sudah digunakan oleh kategori/tag lain")
+- [x] Category/tag rename preserves the existing slug (name changed, slug unchanged)
+- [x] Empty name rejected ("The name field is required"); provided slug normalized to lowercase
+- [x] Category/tag edit and delete work; tables return to 0 rows after cleanup
+- [x] Anonymous GET `/admin/categories` and `/admin/tags` → 302 login; anonymous POST → 403
+- [x] Public homepage regression: all sections (#home/#about/#portfolio/#testimonials/#blog/#contact) render; testimonials still shows 6 cards / `data-per-slide="2"` / nav anchor present
 
 ## Known Issues / Console Errors
 - One external resource fails in the offline sandbox: `https://fonts.googleapis.com/css?family=Roboto+Mono:300,400,500,700` (imported by `style.css`). This is a network limitation, not a code error.
+- Scrollspy `.active` highlight is correct after navigation settles (~1.6 s), but an early automated read shortly after a nav click (~450–600 ms) momentarily showed `.active` stuck on `#home`. This is attributed to IntersectionObserver settling time during the 300 ms jQuery animation, not a regression; no fix was applied. Worth a quick manual spot-check that the active menu item tracks the section while scrolling.
 
 ## Recent Fixes
 - Fixed `AdminLoginAttemptModel` to disable automatic timestamps, resolving an `Unknown column 'updated_at' in 'INSERT INTO'` error on failed login attempts.
@@ -162,12 +206,21 @@
 7. **About section:** Login and open `/admin/settings/about`. Edit heading, body, image, alt text, button, and layout; save. Confirm the public homepage `#about` section reflects changes and the nav link appears/disappears based on the visibility toggle.
 8. **Services section:** Login and open `/admin/settings/services`. Edit section title/subtitle/layout and visibility; add, edit, delete, and reorder service cards using the icon dropdown. Confirm the public homepage `#services` section reflects changes and the nav link disappears when the section is hidden.
 9. **Portfolio/Gallery section:** Login and open `/admin/settings/portfolio`. (a) Edit section heading/description/layout/visibility and confirm the public homepage `#portfolio` section and nav anchor update (and disappear when hidden). (b) Add, rename, and delete a filter category; confirm the filter buttons update and deletion of a referenced category is blocked. (c) Add/edit/reorder/delete items with an image, alt text, title, optional link, and categories; confirm Isotope filtering and prettyPhoto lightbox still work, and the nav link disappears when the section is hidden.
+10. **Testimonials section:** Login and open `/admin/settings/testimonials`. (a) Edit section title/subtitle, switch layout between 2-per-slide and 1-per-slide, and toggle visibility; confirm the public homepage `#testimonials` section, carousel slide count, and nav anchor update (and disappear when hidden). (b) Add, edit, reorder, and delete a testimonial card (quote heading, quote body, author name, role, avatar); confirm the carousel updates and that deleting a card does not remove the shared avatar image. (c) Attempt to upload a non-image file as avatar and confirm rejection; leave required fields empty and confirm error messages.
+11. **Categories:** Login and open `/admin/categories` (nav "Kategori"). (a) Add a category and leave the slug blank, confirm a slug is auto-generated from the name. (b) Edit the name only; confirm the slug is unchanged. (c) Try to add a second category with the same slug; confirm it is rejected. (d) Delete an unused category; confirm it disappears.
+12. **Tags:** Login and open `/admin/tags` (nav "Tag"). Repeat the same add / rename-preserves-slug / duplicate-slug-rejection / delete flow as categories.
 
 ## Unverified
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
 - [ ] Physical touch interactions on real mobile devices
 - [ ] Mobile-menu closing after a nav click (the collapse-close handler is unchanged and runs with no console errors on desktop, but the reduced/mobile viewport could not be exercised)
 - [ ] `prefers-reduced-motion: reduce` runtime path (verified by code inspection only; the emulated environment reports `no-preference`)
+- [ ] Category/tag deletion "still in use" blocking (code-inspected only; guarded by `tableExists('articles')` / `tableExists('article_tags')`, which do not exist yet, so the branch never triggers until the Articles milestone creates those tables). Note: this intentionally follows the task's "block deletion when in use" rule; the PRD's "deleting a tag removes its articles associations" is deferred/superseded until articles exist.
+
+## Next Milestone (Paused — Article Management)
+- [ ] Next milestone: Article management with draft/publish, cover image, category, and tags.
+- [ ] Implementation will reuse the existing `categories` and `tags` tables, the shared `media` library, and the existing authenticated admin layout.
+- [ ] Existing limitations (mobile viewport/touch, reduced-motion, in-use deletion not yet exercisable) remain documented above.
 
 ## Pending (future tasks)
 - [x] Database setup and migrations
@@ -176,7 +229,8 @@
 - [x] About section (pending owner review/commit)
 - [x] Services section (Owner Accepted)
 - [x] Portfolio/Gallery section (pending owner review/commit)
-- [ ] Category/tag CRUD
+- [x] Testimonials section (pending owner review/commit)
+- [x] Category/tag CRUD (Owner Accepted)
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish
 - [ ] Public article listing/detail/search pages
