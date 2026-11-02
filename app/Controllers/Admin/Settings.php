@@ -7,6 +7,9 @@ use App\Models\SettingModel;
 use App\Models\MediaModel;
 use App\Models\HomepageSectionModel;
 use App\Models\HomepageSectionItemModel;
+use App\Models\PortfolioCategoryModel;
+use App\Models\PortfolioItemModel;
+use App\Models\PortfolioItemCategoryModel;
 
 class Settings extends BaseController
 {
@@ -14,6 +17,9 @@ class Settings extends BaseController
     protected MediaModel $mediaModel;
     protected HomepageSectionModel $sectionModel;
     protected HomepageSectionItemModel $itemModel;
+    protected PortfolioCategoryModel $portfolioCategoryModel;
+    protected PortfolioItemModel $portfolioItemModel;
+    protected PortfolioItemCategoryModel $portfolioItemCategoryModel;
 
     protected array $imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'ico'];
     protected array $imageMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/x-icon', 'image/vnd.microsoft.icon'];
@@ -33,6 +39,9 @@ class Settings extends BaseController
         $this->mediaModel   = new MediaModel();
         $this->sectionModel = new HomepageSectionModel();
         $this->itemModel    = new HomepageSectionItemModel();
+        $this->portfolioCategoryModel     = new PortfolioCategoryModel();
+        $this->portfolioItemModel         = new PortfolioItemModel();
+        $this->portfolioItemCategoryModel = new PortfolioItemCategoryModel();
     }
 
     public function identity()
@@ -447,6 +456,333 @@ class Settings extends BaseController
         $items = $this->itemModel->findBySection($sectionId);
         foreach (array_values($items) as $index => $item) {
             $this->itemModel->update($item['id'], ['position' => $index + 1]);
+        }
+    }
+
+    public function portfolio()
+    {
+        $section = $this->sectionModel->findSection('portfolio');
+        $content = $section ? json_decode($section['content'], true) : [];
+
+        $categories = $this->portfolioCategoryModel->orderBy('position', 'ASC')->findAll();
+        foreach ($categories as $i => $cat) {
+            $categories[$i]['item_count'] = $this->portfolioItemCategoryModel->countByCategory((int) $cat['id']);
+        }
+
+        $items = $this->portfolioItemModel->orderBy('position', 'ASC')->findAll();
+        foreach ($items as $i => $item) {
+            $items[$i]['category_ids'] = $this->portfolioItemCategoryModel->categoryIdsForItem((int) $item['id']);
+        }
+
+        $editItem = null;
+        $editItemId = $this->request->getGet('edit_item');
+        if ($editItemId && is_numeric($editItemId)) {
+            $row = $this->portfolioItemModel->find((int) $editItemId);
+            if ($row) {
+                $editItem = [
+                    'id'           => (int) $row['id'],
+                    'image'        => $row['image'],
+                    'image_alt'    => $row['image_alt'] ?? '',
+                    'title'        => $row['title'] ?? '',
+                    'link'         => $row['link'] ?? '',
+                    'category_ids' => $this->portfolioItemCategoryModel->categoryIdsForItem((int) $row['id']),
+                ];
+            }
+        }
+
+        $editCategory = null;
+        $editCatId = $this->request->getGet('edit_cat');
+        if ($editCatId && is_numeric($editCatId)) {
+            $row = $this->portfolioCategoryModel->find((int) $editCatId);
+            if ($row) {
+                $editCategory = [
+                    'id'           => (int) $row['id'],
+                    'name'         => $row['name'],
+                    'filter_class' => $row['filter_class'],
+                ];
+            }
+        }
+
+        return view('admin/settings_portfolio', [
+            'title'           => 'Pengaturan Portofolio',
+            'portfolio'       => $content,
+            'categories'      => $categories,
+            'items'           => $items,
+            'media'           => $this->mediaModel->findAll(),
+            'sectionEnabled'  => $section ? (bool) $section['is_enabled'] : true,
+            'editItem'        => $editItem,
+            'editCategory'    => $editCategory,
+        ]);
+    }
+
+    public function doPortfolio()
+    {
+        $rules = [
+            'title'    => 'required|max_length[255]',
+            'subtitle' => 'permit_empty|max_length[1000]',
+            'layout'   => 'required|in_list[masonry_3_columns,grid_2_columns]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $content = [
+            'title'    => $this->request->getPost('title'),
+            'subtitle' => $this->request->getPost('subtitle') ?? '',
+            'layout'   => $this->request->getPost('layout'),
+        ];
+        $isEnabled = $this->request->getPost('is_enabled') ? 1 : 0;
+
+        $section = $this->sectionModel->findSection('portfolio');
+        if ($section) {
+            $this->sectionModel->update($section['id'], [
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+                'layout'     => $content['layout'],
+                'is_enabled' => $isEnabled,
+            ]);
+        } else {
+            $this->sectionModel->insert([
+                'section'    => 'portfolio',
+                'title'      => 'Portfolio',
+                'layout'     => $content['layout'],
+                'is_enabled' => $isEnabled,
+                'sort_order' => 3,
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        return redirect()->to('/admin/settings/portfolio')->with('success', 'Pengaturan portofolio berhasil disimpan.');
+    }
+
+    public function portfolioCategorySave()
+    {
+        $rules = [
+            'category_id'  => 'permit_empty|is_natural_no_zero',
+            'name'         => 'required|max_length[100]',
+            'filter_class' => 'required|max_length[50]|regex_match[/^[a-zA-Z][a-zA-Z0-9_-]*$/]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $name        = $this->request->getPost('name');
+        $filterClass = $this->request->getPost('filter_class');
+        $categoryId  = $this->request->getPost('category_id');
+
+        // Unique filter class (excluding self on edit).
+        $dupe = $this->portfolioCategoryModel->where('filter_class', $filterClass)->first();
+        if ($dupe && (! $categoryId || (int) $dupe['id'] !== (int) $categoryId)) {
+            return redirect()->back()->withInput()->with('error', 'Kelas filter sudah digunakan oleh kategori lain.');
+        }
+
+        if ($categoryId) {
+            $existing = $this->portfolioCategoryModel->find((int) $categoryId);
+            if (! $existing) {
+                return redirect()->back()->with('error', 'Kategori tidak ditemukan.');
+            }
+            $this->portfolioCategoryModel->update((int) $categoryId, [
+                'name'         => $name,
+                'filter_class' => $filterClass,
+            ]);
+            $message = 'Kategori berhasil diperbarui.';
+        } else {
+            $this->portfolioCategoryModel->insert([
+                'name'         => $name,
+                'filter_class' => $filterClass,
+                'position'     => $this->portfolioCategoryModel->maxPosition() + 1,
+            ]);
+            $message = 'Kategori berhasil ditambahkan.';
+        }
+
+        return redirect()->to('/admin/settings/portfolio')->with('success', $message);
+    }
+
+    public function portfolioCategoryDelete()
+    {
+        $categoryId = $this->request->getPost('category_id');
+
+        if (! $categoryId || ! is_numeric($categoryId)) {
+            return redirect()->back()->with('error', 'Kategori tidak valid.');
+        }
+
+        $existing = $this->portfolioCategoryModel->find((int) $categoryId);
+        if (! $existing) {
+            return redirect()->back()->with('error', 'Kategori tidak ditemukan.');
+        }
+
+        if ($this->portfolioItemCategoryModel->countByCategory((int) $categoryId) > 0) {
+            return redirect()->back()->with('error', 'Kategori tidak dapat dihapus karena masih digunakan oleh item portofolio.');
+        }
+
+        $this->portfolioCategoryModel->delete((int) $categoryId);
+        $this->renumberCategories();
+
+        return redirect()->to('/admin/settings/portfolio')->with('success', 'Kategori berhasil dihapus.');
+    }
+
+    public function portfolioItemSave()
+    {
+        $rules = [
+            'item_id'   => 'permit_empty|is_natural_no_zero',
+            'title'     => 'permit_empty|max_length[255]',
+            'image_alt' => 'permit_empty|max_length[255]',
+            'link'      => 'permit_empty|max_length[255]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $itemId = $this->request->getPost('item_id');
+
+        $imageError = $this->validateImageUpload('item_image');
+        if ($imageError) {
+            return redirect()->back()->withInput()->with('errors', ['item_image' => $imageError]);
+        }
+
+        $imagePath = $this->resolveImagePath('item_image', $this->request->getPost('item_image') ?: $this->request->getPost('current_item_image'));
+
+        if (! $imagePath) {
+            return redirect()->back()->withInput()->with('error', 'Gambar wajib diisi.');
+        }
+
+        $categoryIds = $this->filterCategoryIds($this->request->getPost('categories'));
+        if (empty($categoryIds)) {
+            return redirect()->back()->withInput()->with('error', 'Pilih minimal satu kategori.');
+        }
+
+        $link = $this->request->getPost('link');
+        if ($link && ! $this->isSafeUrl($link)) {
+            return redirect()->back()->withInput()->with('error', 'Link tidak aman. Gunakan URL yang valid.');
+        }
+
+        $data = [
+            'image'     => $imagePath,
+            'image_alt' => $this->request->getPost('image_alt') ?? '',
+            'title'     => $this->request->getPost('title') ?? '',
+            'link'      => $link ?? '',
+        ];
+
+        if ($itemId) {
+            $existing = $this->portfolioItemModel->find((int) $itemId);
+            if (! $existing) {
+                return redirect()->back()->with('error', 'Item portofolio tidak ditemukan.');
+            }
+            $this->portfolioItemModel->update((int) $itemId, $data);
+            $this->portfolioItemCategoryModel->syncForItem((int) $itemId, $categoryIds);
+            $message = 'Item portofolio berhasil diperbarui.';
+        } else {
+            $this->portfolioItemModel->insert($data + ['position' => $this->portfolioItemModel->maxPosition() + 1]);
+            $newId = (int) $this->portfolioItemModel->getInsertID();
+            $this->portfolioItemCategoryModel->syncForItem($newId, $categoryIds);
+            $message = 'Item portofolio berhasil ditambahkan.';
+        }
+
+        return redirect()->to('/admin/settings/portfolio')->with('success', $message);
+    }
+
+    public function portfolioItemDelete()
+    {
+        $itemId = $this->request->getPost('item_id');
+
+        if (! $itemId || ! is_numeric($itemId)) {
+            return redirect()->back()->with('error', 'Item portofolio tidak valid.');
+        }
+
+        $existing = $this->portfolioItemModel->find((int) $itemId);
+        if (! $existing) {
+            return redirect()->back()->with('error', 'Item portofolio tidak ditemukan.');
+        }
+
+        // Remove the item and its category links. The media file is intentionally not deleted.
+        $this->portfolioItemCategoryModel->where('item_id', (int) $itemId)->delete();
+        $this->portfolioItemModel->delete((int) $itemId);
+        $this->renumberItems();
+
+        return redirect()->to('/admin/settings/portfolio')->with('success', 'Item portofolio berhasil dihapus.');
+    }
+
+    public function portfolioItemReorder()
+    {
+        $order = $this->request->getPost('order');
+
+        if (! is_array($order)) {
+            return redirect()->back()->with('error', 'Urutan tidak valid.');
+        }
+
+        $ids = [];
+        foreach ($order as $id) {
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        if (! $ids) {
+            return redirect()->back()->with('error', 'Urutan tidak valid.');
+        }
+
+        $existing = $this->portfolioItemModel->findAll();
+        $existingIds = array_map(fn ($row) => (int) $row['id'], $existing);
+        $ids = array_values(array_unique($ids));
+        foreach ($ids as $id) {
+            if (! in_array($id, $existingIds, true)) {
+                return redirect()->back()->with('error', 'Item portofolio tidak ditemukan.');
+            }
+        }
+
+        $position = 1;
+        foreach ($ids as $id) {
+            $this->portfolioItemModel->update($id, ['position' => $position]);
+            $position++;
+        }
+        foreach ($existingIds as $id) {
+            if (! in_array($id, $ids, true)) {
+                $this->portfolioItemModel->update($id, ['position' => $position]);
+                $position++;
+            }
+        }
+
+        return redirect()->to('/admin/settings/portfolio')->with('success', 'Urutan item portofolio berhasil diperbarui.');
+    }
+
+    protected function filterCategoryIds($raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $valid = $this->portfolioCategoryModel->findAll();
+        $validIds = array_map(fn ($row) => (int) $row['id'], $valid);
+
+        $result = [];
+        foreach ($raw as $id) {
+            if (! is_numeric($id)) {
+                continue;
+            }
+            $id = (int) $id;
+            if (in_array($id, $validIds, true) && ! in_array($id, $result, true)) {
+                $result[] = $id;
+            }
+        }
+
+        return $result;
+    }
+
+    protected function renumberCategories(): void
+    {
+        $categories = $this->portfolioCategoryModel->orderBy('position', 'ASC')->findAll();
+        foreach (array_values($categories) as $index => $cat) {
+            $this->portfolioCategoryModel->update($cat['id'], ['position' => $index + 1]);
+        }
+    }
+
+    protected function renumberItems(): void
+    {
+        $items = $this->portfolioItemModel->orderBy('position', 'ASC')->findAll();
+        foreach (array_values($items) as $index => $item) {
+            $this->portfolioItemModel->update($item['id'], ['position' => $index + 1]);
         }
     }
 

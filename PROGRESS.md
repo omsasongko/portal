@@ -45,6 +45,19 @@
 - [x] Hid Services navigation anchor when section is disabled
 - [x] Verified CRUD, ordering, persistence, validation, anonymous access denial, and public rendering
 
+### Portfolio / Gallery Section (Ready for Owner Review)
+- [x] Added additive migration creating `portfolio_categories`, `portfolio_items`, and `portfolio_item_categories` (pivot) tables and seeding the `portfolio` section + 3 filter categories + 6 gallery items from existing content (guarded, no overwrite of saved data)
+- [x] Added `PortfolioCategoryModel`, `PortfolioItemModel`, and `PortfolioItemCategoryModel` (pivot with `useAutoIncrement = false`)
+- [x] Added protected admin screen at `/admin/settings/portfolio` with Indonesian labels, validation, and CSRF
+- [x] Supported section title, subtitle, layout (masonry 3-col / grid 2-col), and visibility toggle
+- [x] Supported filter categories as a separate manager (name + CSS filter class), validated against `^[a-zA-Z][a-zA-Z0-9_-]*$` with unique constraint; deletion blocked while referenced
+- [x] Supported item add/edit/delete/ordering (image, alt text, title, optional link, categories) using the shared media selector/upload
+- [x] Deleting an item removes only the portfolio item + pivot rows, never the shared media file
+- [x] Rendered saved Portfolio content on public homepage while preserving `#portfolio` section, Bootstrap 5 layout, Isotope filtering, and prettyPhoto lightbox
+- [x] Hid Portfolio navigation anchor when section is disabled
+- [x] Item `link` when empty uses prettyPhoto lightbox on the image; when set, the overlay anchor points to the link (no `data-rel`)
+- [x] Verified section/category/item CRUD, ordering, persistence, filtering, visibility, validation, anonymous access denial, and homepage rendering
+
 ### Environment / Infrastructure
 - [x] Apache 2.4.69 configured for Portal on `127.0.0.1:8081`
 - [x] DocumentRoot points to `/Volumes/Data/Project/portal/public`
@@ -106,6 +119,13 @@
 - [x] Saved settings persist after reload and render on the public homepage
 - [x] Public homepage preserves original appearance when settings are reset to defaults
 - [x] Anonymous access to `/admin/settings/*` is denied and redirected to login
+- [x] Portfolio section save (title/subtitle/layout/visibility) persists and renders on the public homepage
+- [x] Portfolio category add/rename/delete works; delete is blocked while the category is referenced ("Kategori tidak dapat dihapus karena masih digunakan oleh item portofolio.")
+- [x] Portfolio item add/edit/delete/reorder works; item delete preserves the shared media file
+- [x] Portfolio validation rejects empty image/categories, invalid filter-class format, and duplicate filter-class
+- [x] Portfolio image upload rejects `.php` and `.php.jpg` payloads (extension + MIME); valid PNG upload accepted
+- [x] Portfolio visibility toggle hides both the nav anchor and the `#portfolio` section
+- [x] Public homepage renders 6 seeded items, 6 images, and filter buttons `*` / `.gal_a` / `.gal_b` / `.gal_c`
 
 ## Known Issues / Console Errors
 - One external resource fails in the offline sandbox: `https://fonts.googleapis.com/css?family=Roboto+Mono:300,400,500,700` (imported by `style.css`). This is a network limitation, not a code error.
@@ -123,6 +143,7 @@
 6. Resize browser to mobile width or use device emulation: confirm layout remains responsive and navigation collapses.
 7. **About section:** Login and open `/admin/settings/about`. Edit heading, body, image, alt text, button, and layout; save. Confirm the public homepage `#about` section reflects changes and the nav link appears/disappears based on the visibility toggle.
 8. **Services section:** Login and open `/admin/settings/services`. Edit section title/subtitle/layout and visibility; add, edit, delete, and reorder service cards using the icon dropdown. Confirm the public homepage `#services` section reflects changes and the nav link disappears when the section is hidden.
+9. **Portfolio/Gallery section:** Login and open `/admin/settings/portfolio`. (a) Edit section heading/description/layout/visibility and confirm the public homepage `#portfolio` section and nav anchor update (and disappear when hidden). (b) Add, rename, and delete a filter category; confirm the filter buttons update and deletion of a referenced category is blocked. (c) Add/edit/reorder/delete items with an image, alt text, title, optional link, and categories; confirm Isotope filtering and prettyPhoto lightbox still work, and the nav link disappears when the section is hidden.
 
 ## Unverified
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
@@ -134,6 +155,7 @@
 - [x] Site identity and hero settings
 - [x] About section (pending owner review/commit)
 - [x] Services section (Owner Accepted)
+- [x] Portfolio/Gallery section (pending owner review/commit)
 - [ ] Category/tag CRUD
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish

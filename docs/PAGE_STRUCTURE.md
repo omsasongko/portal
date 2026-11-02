@@ -163,7 +163,7 @@ These components appear on the homepage and will also be used on other public pa
 | Visibility / ordering | Section toggle; order among homepage sections. |
 | Layout options | `masonry_3_columns` (current), `grid_2_columns`. |
 | Proposed admin screen | **Homepage → Portfolio** with filter manager and item list. |
-| Proposed storage | `homepage_sections` row (`section = 'portfolio'`); `homepage_section_items` for filters and gallery items; media_id for each gallery image. |
+| Proposed storage | `homepage_sections` row (`section = 'portfolio'`); dedicated `portfolio_categories`, `portfolio_items`, and `portfolio_item_categories` (pivot) tables. `filter_class` is a validated unique CSS class (`^[a-zA-Z][a-zA-Z0-9_-]*$`). |
 
 ### 3.5 Testimonials Section
 | Item | Detail |

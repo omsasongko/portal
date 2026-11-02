@@ -71,9 +71,11 @@
               <a class="nav-link js-scroll-trigger" href="#services">Services</a>
             </li>
             <?php endif; ?>
+            <?php if ($portfolioEnabled): ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#portfolio">Portfolio</a>
             </li>
+            <?php endif; ?>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#testimonials">Testimonials</a>
             </li>
@@ -217,84 +219,63 @@
     </div><!-- end section -->
     <?php endif; ?>
 	
+	<?php if ($portfolioEnabled): ?>
 	<div id="portfolio" class="section lb">
 		<div class="container">
 			<div class="section-title text-start">
-                <h3>Portfolio</h3>
-                <p>Quisque eget nisl id nulla sagittis auctor quis id. Aliquam quis vehicula enim, non aliquam risus.</p>
+                <h3><?= esc($portfolio['title'] ?? 'Portfolio') ?></h3>
+                <?php if (! empty($portfolio['subtitle'])): ?>
+                <p><?= esc($portfolio['subtitle']) ?></p>
+                <?php endif; ?>
             </div><!-- end title -->
 			
 			<div class="gallery-menu row">
 				<div class="col-md-12">
 					<div class="button-group filter-button-group text-start">
 						<button class="active" data-filter="*">All</button>
-						<button data-filter=".gal_a">Web Development</button>
-						<button data-filter=".gal_b">Creative Design</button>
-						<button data-filter=".gal_c">Graphic Design</button>
+						<?php foreach ($portfolioCategories as $cat): ?>
+						<button data-filter=".<?= esc($cat['filter_class']) ?>"><?= esc($cat['name']) ?></button>
+						<?php endforeach; ?>
 					</div>
 				</div>
 			</div>
 			
 			<div class="gallery-list row">
-				<div class="col-md-4 col-sm-6 gallery-grid gal_a gal_b">
+				<?php
+				$portfolioColClass = (($portfolio['layout'] ?? 'masonry_3_columns') === 'grid_2_columns') ? 'col-md-6 col-sm-6' : 'col-md-4 col-sm-6';
+				$categoryClassMap = [];
+				foreach ($portfolioCategories as $cat) {
+					$categoryClassMap[(int) $cat['id']] = $cat['filter_class'];
+				}
+				foreach ($portfolioItems as $item):
+					$itemClasses = [];
+					foreach ($item['category_ids'] as $cid) {
+						if (isset($categoryClassMap[(int) $cid])) {
+							$itemClasses[] = $categoryClassMap[(int) $cid];
+						}
+					}
+					$classAttr = esc(implode(' ', $itemClasses));
+					$titleAttr = ! empty($item['title']) ? ' title="' . esc($item['title']) . '"' : '';
+				?>
+				<div class="<?= $portfolioColClass ?> gallery-grid <?= $classAttr ?>">
 					<div class="gallery-single fix">
-						<img src="<?= base_url('assets/portal/uploads/gallery_img-01.jpg') ?>" class="img-fluid" alt="Image">
+						<img src="<?= base_url($item['image']) ?>" class="img-fluid" alt="<?= esc($item['image_alt'] ?? '') ?>">
 						<div class="img-overlay">
-							<a href="<?= base_url('assets/portal/uploads/gallery_img-01.jpg') ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
+							<?php if (! empty($item['link'])): ?>
+							<a href="<?= esc($item['link']) ?>" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
+							<?php else: ?>
+							<a href="<?= base_url($item['image']) ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"<?= $titleAttr ?>><i class="fa fa-picture-o"></i></a>
+							<?php endif; ?>
 						</div>
 					</div>
 				</div>
-				
-				<div class="col-md-4 col-sm-6 gallery-grid gal_c gal_b">
-					<div class="gallery-single fix">
-						<img src="<?= base_url('assets/portal/uploads/gallery_img-02.jpg') ?>" class="img-fluid" alt="Image">
-						<div class="img-overlay">
-							<a href="<?= base_url('assets/portal/uploads/gallery_img-02.jpg') ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
-						</div>
-					</div>
-				</div>
-				
-				<div class="col-md-4 col-sm-6 gallery-grid gal_a gal_c">
-					<div class="gallery-single fix">
-						<img src="<?= base_url('assets/portal/uploads/gallery_img-03.jpg') ?>" class="img-fluid" alt="Image">
-						<div class="img-overlay">
-							<a href="<?= base_url('assets/portal/uploads/gallery_img-03.jpg') ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
-						</div>
-					</div>
-				</div>
-				
-				<div class="col-md-4 col-sm-6 gallery-grid gal_b gal_a">
-					<div class="gallery-single fix">
-						<img src="<?= base_url('assets/portal/uploads/gallery_img-04.jpg') ?>" class="img-fluid" alt="Image">
-						<div class="img-overlay">
-							<a href="<?= base_url('assets/portal/uploads/gallery_img-04.jpg') ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
-						</div>
-					</div>
-				</div>
-				
-				<div class="col-md-4 col-sm-6 gallery-grid gal_a gal_c">
-					<div class="gallery-single fix">
-						<img src="<?= base_url('assets/portal/uploads/gallery_img-05.jpg') ?>" class="img-fluid" alt="Image">
-						<div class="img-overlay">
-							<a href="<?= base_url('assets/portal/uploads/gallery_img-05.jpg') ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
-						</div>
-					</div>
-				</div>
-				
-				<div class="col-md-4 col-sm-6 gallery-grid gal_c gal_a">
-					<div class="gallery-single fix">
-						<img src="<?= base_url('assets/portal/uploads/gallery_img-06.jpg') ?>" class="img-fluid" alt="Image">
-						<div class="img-overlay">
-							<a href="<?= base_url('assets/portal/uploads/gallery_img-06.jpg') ?>" data-rel="prettyPhoto[gal]" class="hoverbutton global-radius"><i class="fa fa-picture-o"></i></a>
-						</div>
-					</div>
-				</div>
+				<?php endforeach; ?>
 			</div>
 			</div>
 		</div>
 	</div>
-	
-	 <div id="testimonials" class="section wb">
+	<?php endif; ?>
+<div id="testimonials" class="section wb">
         <div class="container">
             <div class="section-title text-start">
                 <h3>Testimonials</h3>

@@ -31,4 +31,11 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('settings/services/card', 'Admin\Settings::serviceCardSave');
     $routes->post('settings/services/card/delete', 'Admin\Settings::serviceCardDelete');
     $routes->post('settings/services/reorder', 'Admin\Settings::serviceCardReorder');
+    $routes->get('settings/portfolio', 'Admin\Settings::portfolio');
+    $routes->post('settings/portfolio', 'Admin\Settings::doPortfolio');
+    $routes->post('settings/portfolio/category', 'Admin\Settings::portfolioCategorySave');
+    $routes->post('settings/portfolio/category/delete', 'Admin\Settings::portfolioCategoryDelete');
+    $routes->post('settings/portfolio/item', 'Admin\Settings::portfolioItemSave');
+    $routes->post('settings/portfolio/item/delete', 'Admin\Settings::portfolioItemDelete');
+    $routes->post('settings/portfolio/item/reorder', 'Admin\Settings::portfolioItemReorder');
 });

@@ -36,6 +36,7 @@ $session = session();
                             <li><a class="dropdown-item" href="<?= base_url('admin/settings/hero') ?>">Hero</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('admin/settings/about') ?>">About</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('admin/settings/services') ?>">Layanan</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('admin/settings/portfolio') ?>">Portofolio</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
