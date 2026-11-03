@@ -2,15 +2,16 @@
 
 <?php $this->section('content') ?>
 <?php $errors = session()->getFlashdata('errors') ?? []; ?>
-<h1 class="h3 mb-4">Pengaturan Portofolio</h1>
 
 <?php if (session()->has('error')): ?>
     <div class="alert alert-danger"><?= esc(session()->getFlashdata('error')) ?></div>
 <?php endif; ?>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Bagian Portofolio</h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3">Bagian Portofolio</h5>
         <form method="post" action="<?= base_url('admin/settings/portfolio') ?>">
             <?= csrf_field() ?>
 
@@ -44,9 +45,11 @@
     </div>
 </div>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title"><?= $editCategory ? 'Edit Kategori' : 'Tambah Kategori' ?></h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3"><?= $editCategory ? 'Edit Kategori' : 'Tambah Kategori' ?></h5>
         <?php if (isset($errors['name']) || isset($errors['filter_class'])): ?>
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -82,7 +85,7 @@
 
         <hr>
 
-        <table class="table align-middle">
+        <table class="table table-striped align-middle">
             <thead>
                 <tr>
                     <th>Nama</th>
@@ -116,9 +119,11 @@
     </div>
 </div>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title"><?= $editItem ? 'Edit Item Portofolio' : 'Tambah Item Portofolio' ?></h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3"><?= $editItem ? 'Edit Item Portofolio' : 'Tambah Item Portofolio' ?></h5>
         <?php if (isset($errors['item_image']) || isset($errors['title']) || isset($errors['image_alt']) || isset($errors['link']) || isset($errors['categories'])): ?>
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -183,14 +188,16 @@
     </div>
 </div>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Daftar Item (<?= count($items) ?>)</h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3">Daftar Item (<?= count($items) ?>)</h5>
         <?php if (empty($items)): ?>
             <p class="text-muted">Belum ada item portofolio.</p>
         <?php else: ?>
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table table-striped align-middle">
                     <thead>
                         <tr>
                             <th style="width:70px;">Urutan</th>

@@ -2,11 +2,12 @@
 
 <?php $this->section('content') ?>
 <?php $errors = session()->getFlashdata('errors') ?? []; ?>
-<h1 class="h3 mb-4">Tag Artikel</h1>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title"><?= $edit ? 'Edit Tag' : 'Tambah Tag' ?></h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3"><?= $edit ? 'Edit Tag' : 'Tambah Tag' ?></h5>
         <?php if (isset($errors['name']) || isset($errors['slug']) || isset($errors['description'])): ?>
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -49,14 +50,16 @@
     </div>
 </div>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Daftar Tag (<?= count($tags) ?>)</h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3">Daftar Tag (<?= count($tags) ?>)</h5>
         <?php if (empty($tags)): ?>
             <p class="text-muted">Belum ada tag.</p>
         <?php else: ?>
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table table-striped align-middle">
                     <thead>
                         <tr>
                             <th>Nama</th>

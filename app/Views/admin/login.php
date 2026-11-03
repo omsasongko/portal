@@ -1,40 +1,28 @@
-<?php $this->extend('admin/layout') ?>
+<?php $this->extend('admin/auth_layout') ?>
 
 <?php $this->section('content') ?>
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="card admin-card mt-5">
-            <div class="card-body p-4">
-                <h4 class="card-title mb-4 text-center">Masuk Admin</h4>
+<p class="login-box-msg">Masuk ke panel admin</p>
 
-                <?php if (session()->has('error')): ?>
-                    <div class="alert alert-danger">
-                        <?= esc(session()->getFlashdata('error')) ?>
-                    </div>
-                <?php endif; ?>
-
-                <form method="post" action="<?= base_url('admin/login') ?>">
-                    <?= csrf_field() ?>
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control <?= isset($errors['username']) ? 'is-invalid' : '' ?>" id="username" name="username" value="<?= old('username') ?>" required>
-                        <?php if (isset($errors['username'])): ?>
-                            <div class="invalid-feedback"><?= esc($errors['username']) ?></div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Kata Sandi</label>
-                        <input type="password" class="form-control <?= isset($errors['password']) ? 'is-invalid' : '' ?>" id="password" name="password" required>
-                        <?php if (isset($errors['password'])): ?>
-                            <div class="invalid-feedback"><?= esc($errors['password']) ?></div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Masuk</button>
-                    </div>
-                </form>
-            </div>
+<form method="post" action="<?= base_url('admin/login') ?>">
+    <?= csrf_field() ?>
+    <div class="input-group mb-3">
+        <input type="text" class="form-control <?= isset($errors['username']) ? 'is-invalid' : '' ?>" id="username" name="username" value="<?= old('username') ?>" placeholder="Username" required>
+        <div class="input-group-text"><span class="bi bi-person-fill"></span></div>
+        <?php if (isset($errors['username'])): ?>
+            <div class="invalid-feedback"><?= esc($errors['username']) ?></div>
+        <?php endif; ?>
+    </div>
+    <div class="input-group mb-3">
+        <input type="password" class="form-control <?= isset($errors['password']) ? 'is-invalid' : '' ?>" id="password" name="password" placeholder="Kata Sandi" required>
+        <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
+        <?php if (isset($errors['password'])): ?>
+            <div class="invalid-feedback"><?= esc($errors['password']) ?></div>
+        <?php endif; ?>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary btn-block w-100">Masuk</button>
         </div>
     </div>
-</div>
+</form>
 <?php $this->endSection() ?>

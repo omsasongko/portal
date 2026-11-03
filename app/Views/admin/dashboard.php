@@ -1,55 +1,53 @@
 <?php $this->extend('admin/layout') ?>
 
 <?php $this->section('content') ?>
-<h1 class="h3 mb-4">Dasbor</h1>
-
 <div class="row">
-    <div class="col-md-4">
-        <div class="card admin-card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Identitas Situs</h5>
-                <p class="card-text display-6"><?= esc($settingsCount ?? 0) ?></p>
-                <a href="<?= base_url('admin/settings/identity') ?>" class="btn btn-sm btn-primary">Kelola Identitas</a>
+    <div class="col-lg-3 col-6">
+        <div class="small-box text-bg-primary">
+            <div class="inner">
+                <h3><?= esc($settingsCount ?? 0) ?></h3>
+                <p>Identitas Situs</p>
             </div>
+            <i class="small-box-icon bi bi-globe"></i>
+            <a href="<?= base_url('admin/settings/identity') ?>" class="small-box-footer">
+                Lihat Detail <i class="bi bi-arrow-right-circle-fill"></i>
+            </a>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card admin-card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Bagian Homepage</h5>
-                <p class="card-text display-6"><?= esc($heroCount ?? 0) ?></p>
-                <a href="<?= base_url('admin/settings/hero') ?>" class="btn btn-sm btn-primary">Kelola Hero</a>
+    <div class="col-lg-3 col-6">
+        <div class="small-box text-bg-success">
+            <div class="inner">
+                <h3><?= esc($enabledSectionsCount ?? 0) ?></h3>
+                <p>Bagian Homepage &mdash; <?= esc($enabledSectionsCount ?? 0) ?> aktif</p>
             </div>
+            <i class="small-box-icon bi bi-layout-text-window"></i>
+            <a href="<?= base_url('admin/settings/hero') ?>" class="small-box-footer">
+                Lihat Detail <i class="bi bi-arrow-right-circle-fill"></i>
+            </a>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card admin-card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Media</h5>
-                <p class="card-text display-6">0</p>
-                <a href="#" class="btn btn-sm btn-secondary disabled">Belum Tersedia</a>
+    <div class="col-lg-3 col-6">
+        <div class="small-box text-bg-warning">
+            <div class="inner">
+                <h3><?= esc($mediaCount ?? 0) ?></h3>
+                <p>Media</p>
             </div>
+            <i class="small-box-icon bi bi-images"></i>
+            <a href="<?= base_url('admin') ?>" class="small-box-footer">
+                Lihat Detail <i class="bi bi-arrow-right-circle-fill"></i>
+            </a>
         </div>
     </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4">
-        <div class="card admin-card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Artikel</h5>
-                <p class="card-text display-6">0</p>
-                <a href="#" class="btn btn-sm btn-secondary disabled">Belum Tersedia</a>
+    <div class="col-lg-3 col-6">
+        <div class="small-box text-bg-info">
+            <div class="inner">
+                <h3><?= esc(($categoriesCount ?? 0) + ($tagsCount ?? 0)) ?></h3>
+                <p>Kategori &amp; Tag</p>
             </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card admin-card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Kategori</h5>
-                <p class="card-text display-6">0</p>
-                <a href="#" class="btn btn-sm btn-secondary disabled">Belum Tersedia</a>
-            </div>
+            <i class="small-box-icon bi bi-bookmark"></i>
+            <a href="<?= base_url('admin/categories') ?>" class="small-box-footer">
+                Lihat Detail <i class="bi bi-arrow-right-circle-fill"></i>
+            </a>
         </div>
     </div>
 </div>

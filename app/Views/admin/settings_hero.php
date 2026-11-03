@@ -2,9 +2,11 @@
 
 <?php $this->section('content') ?>
 <?php $errors = session()->getFlashdata('errors') ?? []; ?>
-<h1 class="h3 mb-4">Pengaturan Hero</h1>
 
-<div class="card admin-card mb-4">
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Pengaturan Hero</h3>
+    </div>
     <div class="card-body">
         <?php if (session()->has('errors')): ?>
             <div class="alert alert-danger">

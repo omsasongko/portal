@@ -2,15 +2,16 @@
 
 <?php $this->section('content') ?>
 <?php $errors = session()->getFlashdata('errors') ?? []; ?>
-<h1 class="h3 mb-4">Pengaturan Layanan</h1>
 
 <?php if (session()->has('error')): ?>
     <div class="alert alert-danger"><?= esc(session()->getFlashdata('error')) ?></div>
 <?php endif; ?>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Bagian Layanan</h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3">Bagian Layanan</h5>
         <form method="post" action="<?= base_url('admin/settings/services') ?>">
             <?= csrf_field() ?>
 
@@ -44,9 +45,11 @@
     </div>
 </div>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title"><?= $edit ? 'Edit Kartu Layanan' : 'Tambah Kartu Layanan' ?></h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3"><?= $edit ? 'Edit Kartu Layanan' : 'Tambah Kartu Layanan' ?></h5>
         <?php if (isset($errors['icon']) || isset($errors['card_title']) || isset($errors['description'])): ?>
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -98,14 +101,16 @@
     </div>
 </div>
 
-<div class="card admin-card mb-4">
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Daftar Kartu (<?= count($items) ?>)</h3>
+    </div>
     <div class="card-body">
-        <h5 class="mb-3">Daftar Kartu (<?= count($items) ?>)</h5>
         <?php if (empty($items)): ?>
             <p class="text-muted">Belum ada kartu layanan.</p>
         <?php else: ?>
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table table-striped align-middle">
                     <thead>
                         <tr>
                             <th style="width:70px;">Urutan</th>
@@ -171,6 +176,9 @@
     </div>
 </div>
 
+<?php $this->endSection() ?>
+
+<?php $this->section('scripts') ?>
 <script>
 document.getElementById('icon').addEventListener('change', function () {
     document.getElementById('icon-preview').className = this.value;

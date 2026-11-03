@@ -1,12 +1,40 @@
 # Portal — Progress Log
 
 ## Last Updated
-2026-11-02
+2026-11-03
 
 ## Status
-Development paused after owner acceptance of Categories and Tags. All completed modules below are committed/pushed to `origin/main`. Next planned milestone is Article management; not yet started.
+Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 template. All completed modules below are committed/pushed to `origin/main`. Next planned milestone is Article management; not yet started.
 
 ## Completed
+
+### AdminLTE 4.10.1 Admin Interface Migration (Ready for Owner Review)
+- [x] Template: AdminLTE v4.10.1 (MIT, ColorlibHQ), Bootstrap 5.3.8 bundled in adminlte.css, no jQuery dependency
+- [x] Dependencies loaded via CDN: Source Sans 3 font (@fontsource 5.3.0), OverlayScrollbars 2.16.0, Bootstrap Icons 1.13.1, Popper.js 2.11.8, Bootstrap 5.3.8 JS
+- [x] Local assets copied to `public/assets/admin/` (css/adminlte.min.css, js/adminlte.min.js, img/AdminLTELogo.png); `adm-back/` kept intact
+- [x] Admin assets fully separated from public homepage assets (`public/assets/portal/`)
+- [x] Created reusable `admin/layout.php` with AdminLTE sidebar, header, content, footer structure
+- [x] Created `admin/auth_layout.php` for login page (centered card, no sidebar)
+- [x] Sidebar navigation: Dasbor, Pengaturan (treeview with 6 children: Identitas Situs, Hero, About, Layanan, Portofolio, Testimoni), Kategori, Tag, Ubah Kata Sandi
+- [x] Active menu detection: sidebar highlights current page, Pengaturan treeview auto-opens when a child is active
+- [x] Sidebar toggle (hamburger) working; dark sidebar theme with light content area
+- [x] Header: "Hai, {admin_name}" greeting and Logout button (POST with CSRF)
+- [x] Content header with page title and breadcrumb on all pages
+- [x] Flash messages (success/error) with dismiss buttons in content area
+- [x] Dashboard: 4 AdminLTE small-box widgets with real data (Identitas Situs, Bagian Homepage, Media, Kategori & Tag)
+- [x] Login page: AdminLTE centered login-box with Bootstrap Icons (person, lock), Indonesian labels
+- [x] All 11 admin screens migrated: login, dashboard, change password, identity, hero, about, services, portfolio, testimonials, categories, tags
+- [x] AdminLTE card structure (card-header with card-title, card-body) on all settings/CRUD pages
+- [x] Tables use `table-striped` for better readability
+- [x] All existing functionality preserved: routes, authentication, CSRF, validation, field names, CRUD, uploads, media selectors, ordering, visibility controls, saved data
+- [x] Indonesian labels and messages preserved throughout
+- [x] Entered values preserved and validation errors displayed when forms fail (old() values + is-invalid classes)
+- [x] Services icon preview script moved to `scripts` section (proper AdminLTE pattern)
+- [x] Public homepage unchanged — no regression (all sections render, own Bootstrap 5 assets unaffected)
+- [x] No database schema or data changes for this visual migration
+- [x] Zero console errors across all admin pages
+- [x] Zero failed network requests (all CDN + local assets load)
+- [x] Protected routes redirect anonymous users to login (verified via curl)
 
 ### CMS Foundation
 - [x] Added `.env` (ignored) and `.env.example` with app and database configuration
@@ -197,6 +225,7 @@ Development paused after owner acceptance of Categories and Tags. All completed 
 - Fixed sluggish top navigation: replaced the 1000 ms `easeInOutExpo` smooth-scroll with a 300 ms `easeOutCubic` animation, cancelled prior animation on new clicks (`.stop(true)`), neutralized Bootstrap 5's `scroll-behavior: smooth` so jQuery's per-frame scroll writes stay instant, and added a `prefers-reduced-motion` instant-jump path.
 
 ## Manual Acceptance Steps
+0. **AdminLTE migration (visual):** Open each admin screen and confirm AdminLTE sidebar layout renders correctly: sidebar toggle, dark sidebar with navigation, active menu highlighting, breadcrumbs, card-based content, footer. Confirm no Bootstrap/AdminLTE console errors in browser dev tools. Confirm the public homepage (`/`) is visually unchanged.
 1. Login at `/admin/login` and open `/admin`.
 2. Click **Pengaturan > Identitas Situs**: update site title/name, meta tags, and upload/select logo/favicon/apple-touch-icon; save and verify public homepage reflects changes.
 3. Click **Pengaturan > Hero**: update heading, description, rotating words, background image, and optional button; save and verify public homepage reflects changes.
@@ -211,6 +240,8 @@ Development paused after owner acceptance of Categories and Tags. All completed 
 12. **Tags:** Login and open `/admin/tags` (nav "Tag"). Repeat the same add / rename-preserves-slug / duplicate-slug-rejection / delete flow as categories.
 
 ## Unverified
+- [ ] AdminLTE sidebar behavior on mobile viewport (sidebar collapse/overlay mode not tested via browser tools — desktop toggle confirmed working)
+- [ ] AdminLTE dark/light theme toggle (theme-init script included but no toggle UI was added — defaults to system preference)
 - [ ] Mobile viewport rendering (browser automation tools in this session do not support viewport resizing)
 - [ ] Physical touch interactions on real mobile devices
 - [ ] Mobile-menu closing after a nav click (the collapse-close handler is unchanged and runs with no console errors on desktop, but the reduced/mobile viewport could not be exercised)

@@ -2,10 +2,22 @@
 
 <?php $this->section('content') ?>
 <?php $errors = session()->getFlashdata('errors') ?? []; ?>
-<h1 class="h3 mb-4">Pengaturan About</h1>
 
-<div class="card admin-card mb-4">
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Pengaturan About</h3>
+    </div>
     <div class="card-body">
+        <?php if (session()->has('errors')): ?>
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    <?php foreach (session()->getFlashdata('errors') as $e): ?>
+                        <li><?= esc($e) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
         <form method="post" action="<?= base_url('admin/settings/about') ?>" enctype="multipart/form-data">
             <?= csrf_field() ?>
 
