@@ -356,3 +356,39 @@ articles / categories / tags
   - Reuse of `menu_items`, `media`, and `articles` modules.
   - Layout presets and section ordering UI.
   - Optional article sidebar.
+
+## 9. Pages & Navigation (Implemented)
+
+### Pages (`pages` table)
+| Column      | Type                          | Notes                                |
+|-------------|-------------------------------|--------------------------------------|
+| id          | INT UNSIGNED AUTO_INCREMENT   | Primary key                          |
+| title       | VARCHAR(200) NOT NULL         |                                      |
+| slug        | VARCHAR(200) NOT NULL UNIQUE  | Editable, auto-generated from title  |
+| content     | TEXT NULL                     | Rich-text HTML, server-side sanitized |
+| status      | ENUM('draft','published')     | Default 'draft'                      |
+| created_at  | DATETIME NULL                 |                                      |
+| updated_at  | DATETIME NULL                 |                                      |
+
+- Public URL: `/pages/{slug}`. Only `status = 'published'` are publicly accessible; draft/deleted return 404.
+- Content sanitized server-side: allowed tags (p, br, strong, b, em, i, u, s, sub, sup, h1-h6, ul, ol, li, a, img, blockquote, pre, code, table, thead, tbody, tfoot, tr, th, td, hr, div, span); allowed attributes per tag; `javascript:`, `vbscript:`, `data:` URIs blocked.
+- Slug preserved when title changes unless explicitly edited.
+- TinyMCE 6 (CDN, GPL) used for rich-text editing in admin.
+
+### Menu Items (`menu_items` table)
+| Column      | Type                              | Notes                                      |
+|-------------|-----------------------------------|--------------------------------------------|
+| id          | INT UNSIGNED AUTO_INCREMENT       | Primary key                                |
+| label       | VARCHAR(100) NOT NULL             | Independent of target title                |
+| type        | ENUM('section','page','url')      | Target type                                |
+| target      | VARCHAR(500) NOT NULL             | Section slug, page slug, or external URL   |
+| sort_order  | INT UNSIGNED NOT NULL DEFAULT 0   |                                            |
+| is_visible  | TINYINT(1) UNSIGNED DEFAULT 1     |                                            |
+| created_at  | DATETIME NULL                     |                                            |
+| updated_at  | DATETIME NULL                     |                                            |
+
+- Seeded with 7 default entries matching existing hardcoded navigation (Home, About Us, Services, Portfolio, Testimonials, Blog, Contact Us).
+- Auto-omit logic: hidden sections (is_enabled=0), unpublished/deleted pages, and items with is_visible=0 are excluded from public navigation.
+- Section links: `#section` on homepage, `/#section` on standalone pages.
+- External URLs validated as HTTP/HTTPS; open in new tab with `rel="noopener"`.
+- Deleting a menu item does not delete target content.

@@ -4,7 +4,7 @@
 2026-11-03
 
 ## Status
-Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 template. All completed modules below are committed/pushed to `origin/main`. Next planned milestone is Article management; not yet started.
+Pages and Navigation Menu management implemented. Admin interface uses AdminLTE 4.10.1. All completed modules below are committed/pushed to `origin/main` (except AdminLTE migration and Pages/Navigation changes which are uncommitted). Next planned milestone is Article management; not yet started.
 
 ## Completed
 
@@ -122,6 +122,28 @@ Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 temp
 - [x] Deletion is blocked while referenced via a `tableExists()` guard against future `articles.category_id` / `article_tags.tag_id` (per task requirement; not yet exercisable because those tables do not exist)
 - [x] Added admin navigation links: "Kategori" and "Tag" in the admin sidebar nav
 
+### Pages & Navigation Menu (Ready for Owner Review)
+- [x] Added additive migration `2026-11-03-100000_CreatePagesMenuItems.php` creating `pages` table (id, title, slug unique, content text, status enum draft/published, timestamps) and `menu_items` table (id, label, type enum section/page/url, target, sort_order, is_visible, timestamps)
+- [x] Seeded 7 default menu items matching existing hardcoded navigation (Home, About Us, Services, Portfolio, Testimonials, Blog, Contact Us) — guarded by empty-table check
+- [x] Added `PageModel` and `MenuItemModel`
+- [x] Added protected admin Pages CRUD at `/admin/pages` with create/edit/delete, Indonesian labels, server-side validation, CSRF, and esc() output
+- [x] Pages: title (required), unique editable slug (auto-generated from title when blank), content with rich-text editor (TinyMCE 6 CDN, GPL), draft/published status
+- [x] Slug preserved when title changes unless explicitly edited; slug validated `^[a-z0-9]+(?:-[a-z0-9]+)*$` and uniqueness enforced
+- [x] Content sanitized server-side with allowlist: allowed tags (p, br, strong, b, em, i, u, s, sub, sup, h1-h6, ul, ol, li, a, img, blockquote, pre, code, table, thead, tbody, tfoot, tr, th, td, hr, div, span); allowed attributes per tag; `javascript:`/`vbscript:`/`data:` URIs blocked; `<script>` tags stripped; event handler attributes (`onmouseover`, `onerror`, etc.) stripped
+- [x] Public pages at `/pages/{slug}` — only `status = 'published'` pages are accessible; drafts and deleted pages return 404
+- [x] Public page view reuses homepage header/footer styling with shared navigation; standalone pages always show shrunk navbar
+- [x] Section links from standalone pages use homepage-qualified format (`/#about`, `/#portfolio`) for full-page navigation
+- [x] Added protected admin Menu management at `/admin/menu` with add/edit/delete, visibility toggle, up/down ordering, Indonesian labels, server-side validation, CSRF
+- [x] Menu targets: homepage section (validated against known sections), published page (slug validated against pages table), or external HTTP/HTTPS URL (validated)
+- [x] Menu labels are independent of page/section titles
+- [x] Deleting a menu item does not delete its target content (page or section)
+- [x] Auto-omit logic: hidden items (is_visible=0), hidden homepage sections (is_enabled=0), and unpublished/deleted pages are excluded from public navigation
+- [x] External URLs open with `target="_blank" rel="noopener"`
+- [x] Homepage navigation now dynamic from menu_items; footer links also dynamic
+- [x] Homepage scroll behavior preserved: 300ms smooth scrolling, fixed-header offset, active highlighting (ScrollSpy), mobile collapse — `js-scroll-trigger` class applied only to section links
+- [x] Admin sidebar: added "Halaman" and "Menu" nav items with active highlighting
+- [x] Dashboard updated with Pages and Menu counts
+
 ### Environment / Infrastructure
 - [x] Apache 2.4.69 configured for Portal on `127.0.0.1:8081`
 - [x] DocumentRoot points to `/Volumes/Data/Project/portal/public`
@@ -214,6 +236,26 @@ Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 temp
 - [x] Category/tag edit and delete work; tables return to 0 rows after cleanup
 - [x] Anonymous GET `/admin/categories` and `/admin/tags` → 302 login; anonymous POST → 403
 - [x] Public homepage regression: all sections (#home/#about/#portfolio/#testimonials/#blog/#contact) render; testimonials still shows 6 cards / `data-per-slide="2"` / nav anchor present
+- [x] Pages migration creates `pages` and `menu_items` tables; seeds 7 default menu items matching hardcoded navigation
+- [x] Page create with blank slug auto-generates from title ("Tentang Kami" → `tentang-kami`)
+- [x] Duplicate slug rejected on page create (redirects back to form)
+- [x] Page edit: title changed ("Tentang Portal Kami") but slug (`tentang-kami`) preserved when not modified
+- [x] Draft page returns 404 at `/pages/halaman-draf`; published page returns 200 at `/pages/tentang-kami`
+- [x] Nonexistent page slug returns 404
+- [x] Content sanitization: `<script>` tags stripped, `javascript:` URLs removed, `onerror`/`onmouseover` event handlers stripped, safe content (`<p>`, `<strong>`, `<img>`) preserved
+- [x] Menu item add (page type): "Tentang" menu pointing to `tentang-kami` page appears in public nav
+- [x] Menu item add (URL type): "GitHub" menu pointing to `https://github.com` appears with `target="_blank" rel="noopener"`
+- [x] Menu visibility toggle: hiding "Blog" removes it from public nav; re-showing restores it
+- [x] Menu move up/down: "Contact Us" swapped with "Blog" via move-up; restored via move-down
+- [x] Auto-omit: disabling `services` section in `homepage_sections` removes "Services" from public nav (restored after)
+- [x] Auto-omit: setting page to `draft` status removes page-type menu item from public nav (restored after)
+- [x] Menu item deletion does not delete target page (pages table unchanged after menu item deletion)
+- [x] Public page view: title, content, nav with homepage-qualified `/#section` links, footer with dynamic menu, navbar always shrunk
+- [x] Homepage dynamic navigation: 7 menu items render with `js-scroll-trigger` class for section links only
+- [x] Homepage footer: dynamic menu links match nav
+- [x] Anonymous GET `/admin/pages` → 302 login; anonymous GET `/admin/menu` → 302 login
+- [x] Admin sidebar: "Halaman" and "Menu" nav items present and render correctly
+- [x] Zero console errors on homepage, admin pages list, admin menu list, and public page view
 
 ## Known Issues / Console Errors
 - One external resource fails in the offline sandbox: `https://fonts.googleapis.com/css?family=Roboto+Mono:300,400,500,700` (imported by `style.css`). This is a network limitation, not a code error.
@@ -238,6 +280,9 @@ Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 temp
 10. **Testimonials section:** Login and open `/admin/settings/testimonials`. (a) Edit section title/subtitle, switch layout between 2-per-slide and 1-per-slide, and toggle visibility; confirm the public homepage `#testimonials` section, carousel slide count, and nav anchor update (and disappear when hidden). (b) Add, edit, reorder, and delete a testimonial card (quote heading, quote body, author name, role, avatar); confirm the carousel updates and that deleting a card does not remove the shared avatar image. (c) Attempt to upload a non-image file as avatar and confirm rejection; leave required fields empty and confirm error messages.
 11. **Categories:** Login and open `/admin/categories` (nav "Kategori"). (a) Add a category and leave the slug blank, confirm a slug is auto-generated from the name. (b) Edit the name only; confirm the slug is unchanged. (c) Try to add a second category with the same slug; confirm it is rejected. (d) Delete an unused category; confirm it disappears.
 12. **Tags:** Login and open `/admin/tags` (nav "Tag"). Repeat the same add / rename-preserves-slug / duplicate-slug-rejection / delete flow as categories.
+13. **Pages:** Login and open `/admin/pages` (nav "Halaman"). (a) Click "Tambah Halaman": enter a title, leave slug blank, set status to "Terbit", type some rich-text content in TinyMCE, and save. Confirm the page appears in the list with auto-generated slug. (b) Edit the page: change the title only; confirm the slug is preserved. (c) Try to create a second page with the same slug; confirm rejection. (d) Set a page to "Draf" status; confirm `/pages/{slug}` returns 404. Set back to "Terbit"; confirm the page loads at `/pages/{slug}`. (e) Open the public page and confirm: page title, content, navigation with homepage-qualified `/#section` links, footer links, navbar always shrunk. (f) Delete a page and confirm it disappears from the list and returns 404 publicly.
+14. **Menu:** Login and open `/admin/menu` (nav "Menu"). (a) Confirm 7 seeded items matching existing navigation. (b) Add a new "Bagian Homepage" menu item; confirm it appears on the public homepage. (c) Add a new "Halaman" menu item pointing to a published page; confirm it appears in nav. (d) Add a "URL Eksternal" menu item with an `https://` URL; confirm it opens in a new tab. (e) Use up/down arrows to reorder; confirm the public nav order changes. (f) Toggle visibility on a menu item; confirm it disappears/reappears in public nav. (g) Edit a menu item label; confirm the label changes without affecting the target. (h) Delete a menu item; confirm it disappears from nav but the target page/section is unaffected. (i) Hide a homepage section (e.g., disable Services via `/admin/settings/services`); confirm the corresponding menu item is auto-omitted from public nav even though it's still visible in admin. (j) Set a page linked by a menu item to "Draf"; confirm the menu item is auto-omitted from public nav.
+15. **Homepage regression:** After all changes, confirm the public homepage at `/` renders all sections, smooth scrolling works (300ms), navbar shrinks on scroll, mobile menu toggles, scroll-to-top works, and the footer shows dynamic links.
 
 ## Unverified
 - [ ] AdminLTE sidebar behavior on mobile viewport (sidebar collapse/overlay mode not tested via browser tools — desktop toggle confirmed working)
@@ -247,10 +292,12 @@ Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 temp
 - [ ] Mobile-menu closing after a nav click (the collapse-close handler is unchanged and runs with no console errors on desktop, but the reduced/mobile viewport could not be exercised)
 - [ ] `prefers-reduced-motion: reduce` runtime path (verified by code inspection only; the emulated environment reports `no-preference`)
 - [ ] Category/tag deletion "still in use" blocking (code-inspected only; guarded by `tableExists('articles')` / `tableExists('article_tags')`, which do not exist yet, so the branch never triggers until the Articles milestone creates those tables). Note: this intentionally follows the task's "block deletion when in use" rule; the PRD's "deleting a tag removes its articles associations" is deferred/superseded until articles exist.
+- [ ] TinyMCE rich-text editor visual rendering and toolbar interaction (CDN loads in browser but automated tool cannot interact with TinyMCE iframe — confirmed TinyMCE init code is correct, and content is submitted and sanitized server-side)
+- [ ] Public page mobile viewport layout (page-content-wrapper responsive CSS verified by inspection but not viewport-tested)
 
 ## Next Milestone (Paused — Article Management)
 - [ ] Next milestone: Article management with draft/publish, cover image, category, and tags.
-- [ ] Implementation will reuse the existing `categories` and `tags` tables, the shared `media` library, and the existing authenticated admin layout.
+- [ ] Implementation will reuse the existing `categories` and `tags` tables, the shared `media` library, the `pages` rich-text editor pattern, and the existing authenticated admin layout.
 - [ ] Existing limitations (mobile viewport/touch, reduced-motion, in-use deletion not yet exercisable) remain documented above.
 
 ## Pending (future tasks)
@@ -262,8 +309,9 @@ Admin interface migrated from minimal Bootstrap 5 layout to AdminLTE 4.10.1 temp
 - [x] Portfolio/Gallery section (pending owner review/commit)
 - [x] Testimonials section (pending owner review/commit)
 - [x] Category/tag CRUD (Owner Accepted)
+- [x] Pages CRUD with rich-text editor (pending owner review/commit)
+- [x] Navigation menu management (pending owner review/commit)
 - [ ] Media library
 - [ ] Article editor with draft/preview/publish
 - [ ] Public article listing/detail/search pages
-- [ ] Menus and site settings
 - [ ] Backup/restore documentation

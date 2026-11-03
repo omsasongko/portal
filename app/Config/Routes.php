@@ -7,6 +7,7 @@ use CodeIgniter\Router\RouteCollection;
  */
 
 $routes->get('/', 'Home::index');
+$routes->get('pages/(:segment)', 'Page::show/$1');
 
 // Admin auth routes
 $routes->get('admin/login', 'Admin\Auth::loginForm');
@@ -51,4 +52,19 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->get('tags', 'Admin\Tags::index');
     $routes->post('tags/save', 'Admin\Tags::save');
     $routes->post('tags/delete', 'Admin\Tags::delete');
+
+    // Pages
+    $routes->get('pages', 'Admin\Pages::index');
+    $routes->get('pages/create', 'Admin\Pages::create');
+    $routes->get('pages/edit/(:num)', 'Admin\Pages::edit/$1');
+    $routes->post('pages/save', 'Admin\Pages::save');
+    $routes->post('pages/delete', 'Admin\Pages::delete');
+
+    // Menu
+    $routes->get('menu', 'Admin\Menu::index');
+    $routes->post('menu/save', 'Admin\Menu::save');
+    $routes->post('menu/delete', 'Admin\Menu::delete');
+    $routes->post('menu/move-up', 'Admin\Menu::moveUp');
+    $routes->post('menu/move-down', 'Admin\Menu::moveDown');
+    $routes->post('menu/toggle-visibility', 'Admin\Menu::toggleVisibility');
 });

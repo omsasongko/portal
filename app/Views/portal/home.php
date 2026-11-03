@@ -58,35 +58,11 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarResponsive">
           <ul class="navbar-nav text-uppercase ms-auto">
+            <?php foreach ($menuItems as $mi): ?>
             <li class="nav-item">
-              <a class="nav-link js-scroll-trigger active" href="#home">Home</a>
+              <a class="nav-link <?= !empty($mi['is_section']) ? 'js-scroll-trigger' : '' ?>" href="<?= esc($mi['url']) ?>"<?= $mi['type'] === 'url' ? ' target="_blank" rel="noopener"' : '' ?>><?= esc($mi['label']) ?></a>
             </li>
-            <?php if ($aboutEnabled): ?>
-            <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#about">About Us</a>
-            </li>
-            <?php endif; ?>
-            <?php if ($servicesEnabled): ?>
-            <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#services">Services</a>
-            </li>
-            <?php endif; ?>
-            <?php if ($portfolioEnabled): ?>
-            <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#portfolio">Portfolio</a>
-            </li>
-            <?php endif; ?>
-            <?php if ($testimonialsEnabled): ?>
-            <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#testimonials">Testimonials</a>
-            </li>
-            <?php endif; ?>
-			<li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#blog">Blog</a>
-            </li>
-			<li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#contact">Contect Us</a>
-            </li>
+            <?php endforeach; ?>
           </ul>
         </div>
       </div>
@@ -437,12 +413,9 @@
             <div class="footer-distributed">
                 <div class="footer-left">
                     <p class="footer-links">
-                        <a href="#">Home</a>
-                        <a href="#">Blog</a>
-                        <a href="#">Pricing</a>
-                        <a href="#">About</a>
-                        <a href="#">Faq</a>
-                        <a href="#">Contact</a>
+                        <?php foreach ($menuItems as $mi): ?>
+                            <a href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
+                        <?php endforeach; ?>
                     </p>
                     <p class="footer-company-name">All Rights Reserved. &copy; 2018 <a href="#">Dominic</a> Design By : 
 					<a href="https://html.design/">html design</a></p>

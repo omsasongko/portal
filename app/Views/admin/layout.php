@@ -144,6 +144,20 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                             </a>
                         </li>
 
+                        <li class="nav-item">
+                            <a href="<?= base_url('admin/pages') ?>" class="nav-link <?= $segment2 === 'pages' ? 'active' : '' ?>">
+                                <i class="nav-icon bi bi-file-earmark-text"></i>
+                                <p>Halaman</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="<?= base_url('admin/menu') ?>" class="nav-link <?= $segment2 === 'menu' ? 'active' : '' ?>">
+                                <i class="nav-icon bi bi-menu-button-wide"></i>
+                                <p>Menu</p>
+                            </a>
+                        </li>
+
                         <li class="nav-header">-</li>
 
                         <li class="nav-item">
