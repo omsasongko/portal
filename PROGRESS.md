@@ -36,7 +36,9 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - [x] Fitness demo CLI `php spark demo:fitness` (never runs in migrations): idempotent by slug/filename; creates Fitness category, 3 tags (Gym/Jurnal Latihan/Perlengkapan Latihan), copies 3 local Unsplash cover photos into `uploads/media/` and registers them, inserts 3 clearly-marked demo articles (2 published, 1 draft) with tag sync; sources/license recorded in `public/assets/portal/uploads/demo/README.md`; editorial content, no medical claims
 - [x] Category/tag deletion guards (previously dormant pending `articles`/`article_tags`) are now active and verified: deletion is blocked with "masih digunakan oleh artikel" while referenced
 
-### Article Image Management & YouTube Embedding (Ready for Owner Review — Uncommitted)
+### Article Image Management & YouTube Embedding (Owner Accepted — Ready to Commit)
+
+**Owner acceptance (2026-11-04):** manual checks for upload, library selection, image resize/alignment, crop, YouTube embed, and article save/reopen/public rendering all successful.
 
 **Manual acceptance findings addressed:**
 - ✗ Editor's Insert/Edit Image dialog only offered a Source URL — now replaced with "Unggah Gambar" and "Pilih dari Pustaka" toolbar buttons
@@ -62,7 +64,14 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - [x] `iframe` added to allowed tags: src (restricted to youtube-nocookie.com/embed/ only), width, height, frameborder, allow, allowfullscreen, title, class, style
 - [x] Style sanitization: whitelist of CSS properties (width, max-width, height, display, margin, float, text-align, position, padding-bottom, overflow, top, left, aspect-ratio, border)
 - [x] Class filtering: img classes limited to img-fluid, img-align-left/center/right; div classes limited to video-embed-wrapper, img-align-left/center/right
-- [x] Scripts, event handlers, javascript:/vbscript:/data: URLs, arbitrary iframe sources all rejected
+- [x] Article save wrapped in database transaction; failure rolls back article + tag changes and returns Indonesian error message without data corruption
+- [x] No partial changes from failed save: `sanitizeHtml()` runs just before the transaction, so exception prevents any DB write
+
+**Sanitizer attribute parsing (fixed 2026-11-04):**
+- [x] Root cause: line 89 used `$attr[2] !== '' ? $attr[2] : ($attr[3] !== '' ? $attr[3] : ($attr[4] ?? ''))`; for double-quoted empty values (`alt=""`) groups 3 and 4 are omitted from the `PREG_SET_ORDER` array, producing `Undefined array key 3`
+- [x] Fix: inspect the first character after `=` in the full match to determine which capture group holds the value (double quote → group 2, single quote → group 3, otherwise → group 4); empty quoted values are preserved
+- [x] Regression checks pass for: empty double-quoted, double-quoted value, single-quoted value, unquoted value, boolean attribute, single-quoted empty, unquoted empty, style attribute, full article body
+- [x] Security preserved: `<script>`, event handlers (`onerror`), evil iframe src, `javascript:` href all stripped; approved YouTube iframes and image resize/alignment classes/styles survive
 
 **TinyMCE editor integration (article_form.php):**
 - [x] Custom toolbar buttons: "Unggah Gambar" (file upload), "Pilih dari Pustaka" (media library grid dialog)
@@ -71,7 +80,7 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - [x] "Potong" crop button with visual drag-select overlay dialog, Apply/Cancel, Indonesian coordinate display
 - [x] "YouTube" embed button with URL input dialog, Indonesian help text about supported formats and internet requirement
 - [x] Click to select image, double-click for alt text edit + remove dialog
-- [x] CSRF token sent as X-CSRF-TOKEN header for JSON endpoints; cookie-based refresh for regenerate=true
+- [x] CSRF token returned in every JSON response body via `withCsrf()` helper; `refreshCsrf()` reads token from response (cookie is HttpOnly, unreadable by JS); hidden form fields also updated so the main save form works after AJAX POSTs
 - [x] valid_elements updated to match server-side allowlist
 - [x] content_style provides WYSIWYG preview of alignment/resize/video in editor
 
@@ -303,27 +312,46 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - [x] `<iframe src="https://evil.com">` → src stripped (only youtube-nocookie.com/embed/ allowed)
 - [x] Image alignment classes (img-align-center), styles (width: 50%), and YouTube embeds all survive sanitization
 
+**Sanitizer attribute-parsing fix verification (2026-11-04):**
+- [x] PHP regression script: 13 cases covering empty double-quoted, double-quoted value, single-quoted value, unquoted value, boolean attribute, single-quoted empty, unquoted empty, style attribute, full article body, script stripping, event-handler stripping, evil iframe stripping, and `javascript:` href stripping — all pass with zero warnings
+- [x] Actual article save via browser: formatted text (`<strong>`, `<em>`), inline cropped image with 50% width + center alignment, and approved YouTube embed — saved, reopened, and public-rendered correctly
+- [x] Public page `/blog/artikel-uji-simpan` rendered the cropped image, alignment, width, YouTube iframe, and formatted text before test cleanup
+- [x] Failed save left no partial changes: `articles` and `article_tags` tables unchanged for existing articles; transaction added to prevent future partial writes
+- [x] PHP lint clean on `app/Controllers/Admin/Traits/SanitizesHtml.php` and `app/Controllers/Admin/Articles.php`
+
 **Save/reopen persistence:**
 - [x] Article with inline image (class, style, alt) + YouTube embed saved → HTTP 303 redirect
 - [x] Reopened in edit form → all image settings and YouTube embed preserved in textarea
 - [x] Public article page renders all alignment CSS, video wrapper, and responsive styles
+
+**Crop end-to-end browser test (2026-11-04):**
+- [x] Crop dialog opens on image click → "Potong" button → visual overlay with drag-select
+- [x] Mouse drag creates 200×150 selection → "Terapkan" clicked → fetch POST returns HTTP 200
+- [x] Response includes `{location: "...cropped...", csrf_test_name: "...new_token..."}`
+- [x] Dialog closes, TinyMCE image src updated (both `src` and `data-mce-src`), success notification "Gambar berhasil dipotong."
+- [x] Width (50%), alignment class (img-align-center), and alt text ("Gambar uji") preserved after crop
+- [x] Hidden CSRF form field updated by `refreshCsrf()` — main form save works after AJAX POSTs
+- [x] Article saved (redirect to list) → reopened → editor shows cropped image URL
+- [x] Public page at `/blog/uji-gambar-video` renders cropped image with correct alignment and width
+- [x] Cropped file dimensions: 200×150 (from 400×300 source, crop area 200×150) — verified via `getimagesize()`
+- [x] Original media file preserved (not deleted or modified by crop)
 
 **Regression (no breakage):**
 - [x] Homepage → 200; Blog list → 200; Existing article detail → 200; Page → 200
 - [x] Admin articles/pages/menu → 200; Preview → 200
 - [x] Data intact: 3 pages, 7 menu items, 4 articles (3 original + 1 test), 1 category, 3 tags
 
-**Requires owner manual testing (visual interactions not exercisable via curl):**
-- [ ] Click "Unggah Gambar" button in editor toolbar → file picker opens → image inserts at cursor
-- [ ] Click "Pilih dari Pustaka" button → media grid dialog → click image → inserts at cursor
+**Requires owner manual testing (visual interactions not fully exercisable via automated tooling):**
+- [ ] Click "Unggah Gambar" button in editor toolbar → file picker opens → image inserts at cursor *(automated upload endpoint verified; owner confirmed manual insertion works)*
+- [ ] Click "Pilih dari Pustaka" button → media grid dialog → click image → inserts at cursor *(automated endpoint verified; owner confirmed manual selection works)*
 - [ ] Click image in editor → image selected (blue handles visible)
 - [ ] Double-click image → alt text dialog opens → edit alt → save → alt persists
 - [ ] Double-click image → "Hapus Gambar" button → image removed from content, media file preserved
-- [ ] Click alignment buttons (left/center/right) with image selected → alignment changes visually in editor
-- [ ] Click resize buttons (25%/50%/75%/100%) with image selected → width changes visually in editor
-- [ ] Click "Potong" with image selected → crop overlay appears → drag selection → "Terapkan" → image src updated to cropped version
-- [ ] Click "Potong" → "Batal" → image unchanged
-- [ ] Click "YouTube" → enter URL → "Sematkan" → responsive video player appears in editor
+- [ ] Click alignment buttons (left/center/right) with image selected → alignment changes visually in editor *(owner confirmed working)*
+- [ ] Click resize buttons (25%/50%/75%/100%) with image selected → width changes visually in editor *(owner confirmed working)*
+- [ ] Click "Potong" with image selected → crop overlay appears → drag selection → "Terapkan" → image src updated to cropped version *(automated browser test passed: crop → save → reopen → public rendering all verified; owner confirmed manual crop works)*
+- [ ] Click "Potong" → "Batal" → image unchanged *(Cancel button closes dialog without making a request; verified by code inspection)*
+- [ ] Click "YouTube" → enter URL → "Sematkan" → responsive video player appears in editor *(owner confirmed working)*
 - [ ] Upload failure (e.g. network error) → error notification shown, article content preserved
 - [ ] Animated GIF uploaded → plays animation in editor and public page
 - [ ] Animated GIF → "Potong" → rejected with "Pemotongan tidak tersedia untuk GIF animasi."
@@ -436,6 +464,15 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - Scrollspy `.active` highlight is correct after navigation settles (~1.6 s), but an early automated read shortly after a nav click (~450–600 ms) momentarily showed `.active` stuck on `#home`. This is attributed to IntersectionObserver settling time during the 300 ms jQuery animation, not a regression; no fix was applied. Worth a quick manual spot-check that the active menu item tracks the section while scrolling.
 
 ## Recent Fixes
+- **Fixed article save error `Undefined array key 3` in `SanitizesHtml.php`** — Root cause: the regex alternation `(?:"([^"]*)"|'([^']*)'|(\S+))` returns only the matched capture group plus empty strings for the others in `PREG_SET_ORDER`; for double-quoted empty values (`alt=""`) groups 3 and 4 are omitted entirely. The old code `$attr[2] !== '' ? $attr[2] : ($attr[3] !== '' ? $attr[3] : ($attr[4] ?? ''))` accessed `$attr[3]` unconditionally when group 2 was empty, throwing `Undefined array key 3`. Fix: determine the active capture group by inspecting the first character after `=` in the full match (`"`, `'`, or unquoted), then read the corresponding group with `?? ''`. Empty quoted values are now preserved. Added database transaction around `Articles::save()` so any future failure rolls back article + tag changes without data corruption.
+- **Fixed article editor crop failure ("Gagal memotong gambar.")** — Root cause: CI4 CSRF cookie has `HttpOnly=true`, so after any AJAX POST regenerates the CSRF token, JavaScript cannot read the new token from `document.cookie`. Every second POST (e.g., upload then crop) used a stale token and received HTTP 403 `SecurityException`. Additionally, `node.setAttribute('src', ...)` bypassed TinyMCE's internal `data-mce-src` tracking, so cropped image URLs were lost on `triggerSave()`.
+  - Fix (server): added `withCsrf()` helper to `Articles` controller that includes `csrf_test_name` in every JSON response body; applied to all 4 AJAX endpoints (upload, crop, media-library, YouTube embed) and all error paths.
+  - Fix (client): `refreshCsrf()` now reads the token from the response body instead of the cookie; also updates hidden `input[name="csrf_test_name"]` form fields so the main article save works after AJAX POSTs. Added `.catch()` on `r.json()` for all fetch calls to handle non-JSON 403 responses with Indonesian message "Sesi keamanan telah berubah."
+  - Fix (TinyMCE): changed `node.setAttribute('src', ...)` to `editor.dom.setAttrib(node, 'src', ...)` so both `src` and `data-mce-src` are updated, ensuring `triggerSave()` serializes the cropped URL.
+  - Media library endpoint response changed from flat array to `{items: [...], csrf_test_name: "..."}` — frontend reads `data.items || data` for backward compatibility.
+  - Verified via curl: two consecutive POSTs (YouTube → crop) both succeed with chained CSRF tokens.
+  - Verified via browser: crop dialog opens → selection made → Apply → HTTP 200 → dialog closes → image src updated → success notification → save → redirect to articles list → reopen → cropped image persists → public page renders cropped image with alignment/width preserved.
+  - Cropped image dimensions verified: 200×150 crop from 400×300 source produces exactly 200×150 output.
 - Fixed `AdminLoginAttemptModel` to disable automatic timestamps, resolving an `Unknown column 'updated_at' in 'INSERT INTO'` error on failed login attempts.
 - Fixed `MediaModel` to disable automatic timestamps (media table only tracks `created_at`).
 - Fixed sluggish top navigation: replaced the 1000 ms `easeInOutExpo` smooth-scroll with a 300 ms `easeOutCubic` animation, cancelled prior animation on new clicks (`.stop(true)`), neutralized Bootstrap 5's `scroll-behavior: smooth` so jQuery's per-frame scroll writes stay instant, and added a `prefers-reduced-motion` instant-jump path.
@@ -472,6 +509,22 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - [ ] TinyMCE rich-text editor visual rendering and toolbar interaction (local build initializes with zero console errors and the `id` language pack loads, but automated tooling cannot interact with the TinyMCE iframe — content submission + server-side sanitization are verified)
 - [ ] Public page mobile viewport layout (page-content-wrapper responsive CSS verified by inspection but not viewport-tested)
 - [ ] `/blog` listing + article detail mobile viewport rendering (responsive Bootstrap grid by inspection; not viewport-tested)
+
+## Handoff for Tomorrow (2026-11-05)
+
+**Current milestone just completed:** Article editor image management + YouTube embedding fixes are owner-accepted and ready on `main`. This includes the CSRF token chain fix for sequential AJAX operations, the TinyMCE crop src persistence fix, the sanitizer `Undefined array key 3` fix, and transaction-wrapped article saves.
+
+**Remaining requirements before the next feature:**
+- Owner already confirmed manual checks pass for upload, library selection, resize, alignment, crop, YouTube embed, and save/reopen/public rendering.
+- Untested items remain listed under **Requires owner manual testing** and **Unverified** above (e.g., upload/network-error path, animated GIF crop rejection, mobile viewport, prefers-reduced-motion). No new code is needed unless the owner reports issues.
+- Existing data is intact (3 pages, 7 menu items, 4 articles, 1 category, 3 tags). The test article used during verification was cleaned up.
+
+**Next pending task (do not start now):** Implement the standalone media library management screen at `/admin/media` — list uploaded media, allow delete (with guard against use as article cover or inline image), preserve any media referenced by existing articles/pages/portfolio/testimonials. This is the first item under **Next Milestone (Suggested)**.
+
+**Notes for the next session:**
+- All current changes are on `main` and will be pushed after this commit.
+- No credentials, `.env`, logs, caches, DB dumps, runtime uploads, or temp files are included in the commit.
+- If the push is rejected, do not force-push; report the conflict and ask the owner how to proceed.
 
 ## Next Milestone (Suggested)
 - [ ] Media library management screen (standalone `/admin/media` list with delete — media rows are currently created by uploads and the picker, but there is no management UI)

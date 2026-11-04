@@ -30,6 +30,16 @@ class Articles extends BaseController
         $this->mediaModel    = new MediaModel();
     }
 
+    /**
+     * Build a JSON array that includes a fresh CSRF token so the browser
+     * can continue making POST requests after token regeneration.
+     */
+    private function withCsrf(array $data): array
+    {
+        $data[csrf_token()] = csrf_hash();
+        return $data;
+    }
+
     public function index()
     {
         $articles = $this->articleModel->orderBy('updated_at', 'DESC')->findAll();
@@ -157,16 +167,27 @@ class Articles extends BaseController
             'published_at'  => $publishedAt,
         ];
 
-        if ($existing) {
-            $this->articleModel->update($id, $data);
-            $articleId = $id;
-            $message   = 'Artikel berhasil diperbarui.';
-        } else {
-            $articleId = $this->articleModel->insert($data);
-            $message   = 'Artikel berhasil ditambahkan.';
-        }
+        $db = \Config\Database::connect();
+        $db->transStart();
 
-        $this->articleModel->syncTags((int) $articleId, $tagIds);
+        try {
+            if ($existing) {
+                $this->articleModel->update($id, $data);
+                $articleId = $id;
+                $message   = 'Artikel berhasil diperbarui.';
+            } else {
+                $articleId = $this->articleModel->insert($data);
+                $message   = 'Artikel berhasil ditambahkan.';
+            }
+
+            $this->articleModel->syncTags((int) $articleId, $tagIds);
+
+            $db->transComplete();
+        } catch (Throwable $e) {
+            $db->transRollback();
+            log_message('error', 'Article save failed: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan artikel. Silakan coba lagi.');
+        }
 
         return redirect()->to(base_url('admin/articles'))->with('success', $message);
     }
@@ -230,37 +251,37 @@ class Articles extends BaseController
 
         if (! $file || ! $file->isValid()) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'File upload gagal.']);
+                ->setJSON($this->withCsrf(['error' => 'File upload gagal.']));
         }
 
         $ext = strtolower($file->getExtension());
         $clientExt = strtolower($file->getClientExtension());
         if (! in_array($ext, $this->imageExtensions, true) || ! in_array($clientExt, $this->imageExtensions, true)) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP.']);
+                ->setJSON($this->withCsrf(['error' => 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP.']));
         }
 
         $mime = $file->getMimeType();
         if (! in_array($mime, $this->imageMimes, true)) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'File bukan gambar yang valid.']);
+                ->setJSON($this->withCsrf(['error' => 'File bukan gambar yang valid.']));
         }
 
         $size = $file->getSize();
         if ($size < $this->imageMinSize) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Ukuran file terlalu kecil. Minimum 50 KB.']);
+                ->setJSON($this->withCsrf(['error' => 'Ukuran file terlalu kecil. Minimum 50 KB.']));
         }
 
         if ($size > $this->imageMaxSize) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Ukuran file terlalu besar. Maksimum 10 MB.']);
+                ->setJSON($this->withCsrf(['error' => 'Ukuran file terlalu besar. Maksimum 10 MB.']));
         }
 
         $imageInfo = @getimagesize($file->getTempName());
         if ($imageInfo === false) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'File bukan gambar yang valid (konten tidak dikenali).']);
+                ->setJSON($this->withCsrf(['error' => 'File bukan gambar yang valid (konten tidak dikenali).']));
         }
 
         $uploadDir = FCPATH . 'assets' . DIRECTORY_SEPARATOR . 'portal' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'media';
@@ -271,7 +292,7 @@ class Articles extends BaseController
         $newName = $file->getRandomName();
         if (! $file->move($uploadDir, $newName)) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Gagal menyimpan file.']);
+                ->setJSON($this->withCsrf(['error' => 'Gagal menyimpan file.']));
         }
 
         $relativePath = 'assets/portal/uploads/media/' . $newName;
@@ -282,9 +303,9 @@ class Articles extends BaseController
             'mime_type' => $mime,
         ]);
 
-        return $this->response->setJSON([
+        return $this->response->setJSON($this->withCsrf([
             'location' => base_url($relativePath),
-        ]);
+        ]));
     }
 
     /**
@@ -296,7 +317,7 @@ class Articles extends BaseController
 
         if (empty($json)) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Data tidak valid.']);
+                ->setJSON($this->withCsrf(['error' => 'Data tidak valid.']));
         }
 
         $src    = $json['src'] ?? '';
@@ -307,7 +328,7 @@ class Articles extends BaseController
 
         if ($src === '' || $x === null || $y === null || $width === null || $height === null) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Parameter tidak lengkap.']);
+                ->setJSON($this->withCsrf(['error' => 'Parameter tidak lengkap.']));
         }
 
         $x      = (int) $x;
@@ -317,7 +338,7 @@ class Articles extends BaseController
 
         if ($x < 0 || $y < 0 || $width <= 0 || $height <= 0) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Koordinat pemotongan tidak valid.']);
+                ->setJSON($this->withCsrf(['error' => 'Koordinat pemotongan tidak valid.']));
         }
 
         // Resolve absolute path, stripping any leading slash
@@ -326,13 +347,13 @@ class Articles extends BaseController
 
         if (! is_file($absPath)) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'File sumber tidak ditemukan.']);
+                ->setJSON($this->withCsrf(['error' => 'File sumber tidak ditemukan.']));
         }
 
         $imageInfo = @getimagesize($absPath);
         if ($imageInfo === false) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'File sumber bukan gambar yang valid.']);
+                ->setJSON($this->withCsrf(['error' => 'File sumber bukan gambar yang valid.']));
         }
 
         $srcWidth  = $imageInfo[0];
@@ -341,14 +362,14 @@ class Articles extends BaseController
 
         if (($x + $width) > $srcWidth || ($y + $height) > $srcHeight) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Area pemotongan melebihi dimensi gambar.']);
+                ->setJSON($this->withCsrf(['error' => 'Area pemotongan melebihi dimensi gambar.']));
         }
 
         // Check for animated GIF
         if ($srcType === IMAGETYPE_GIF) {
             if ($this->isAnimatedGif($absPath)) {
                 return $this->response->setStatusCode(400)
-                    ->setJSON(['error' => 'Pemotongan tidak tersedia untuk GIF animasi. Gunakan gambar statis.']);
+                    ->setJSON($this->withCsrf(['error' => 'Pemotongan tidak tersedia untuk GIF animasi. Gunakan gambar statis.']));
             }
         }
 
@@ -363,7 +384,7 @@ class Articles extends BaseController
 
         if (! $srcImage) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Gagal memproses gambar sumber.']);
+                ->setJSON($this->withCsrf(['error' => 'Gagal memproses gambar sumber.']));
         }
 
         // Create cropped image
@@ -428,7 +449,7 @@ class Articles extends BaseController
 
         if (! $saved) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Gagal menyimpan hasil pemotongan.']);
+                ->setJSON($this->withCsrf(['error' => 'Gagal menyimpan hasil pemotongan.']));
         }
 
         // Validate output size
@@ -436,7 +457,7 @@ class Articles extends BaseController
         if ($outputSize > $this->imageMaxSize) {
             @unlink($destPath);
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'Ukuran file hasil pemotongan terlalu besar. Maksimum 10 MB.']);
+                ->setJSON($this->withCsrf(['error' => 'Ukuran file hasil pemotongan terlalu besar. Maksimum 10 MB.']));
         }
 
         $relativePath = 'assets/portal/uploads/media/' . $newName;
@@ -447,9 +468,9 @@ class Articles extends BaseController
             'mime_type' => $mime,
         ]);
 
-        return $this->response->setJSON([
+        return $this->response->setJSON($this->withCsrf([
             'location' => base_url($relativePath),
-        ]);
+        ]));
     }
 
     /**
@@ -473,7 +494,7 @@ class Articles extends BaseController
             ];
         }
 
-        return $this->response->setJSON($items);
+        return $this->response->setJSON($this->withCsrf(['items' => $items]));
     }
 
     /**
@@ -485,7 +506,7 @@ class Articles extends BaseController
 
         if (empty($json) || empty($json['url'])) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'URL YouTube tidak valid.']);
+                ->setJSON($this->withCsrf(['error' => 'URL YouTube tidak valid.']));
         }
 
         $url = trim($json['url']);
@@ -493,7 +514,7 @@ class Articles extends BaseController
 
         if ($videoId === null) {
             return $this->response->setStatusCode(400)
-                ->setJSON(['error' => 'URL YouTube tidak valid. Gunakan link dari youtube.com atau youtu.be.']);
+                ->setJSON($this->withCsrf(['error' => 'URL YouTube tidak valid. Gunakan link dari youtube.com atau youtu.be.']));
         }
 
         $embedUrl = 'https://www.youtube-nocookie.com/embed/' . $videoId;
@@ -509,10 +530,10 @@ class Articles extends BaseController
             . '></iframe>'
             . '</div>';
 
-        return $this->response->setJSON([
+        return $this->response->setJSON($this->withCsrf([
             'html'    => $html,
             'videoId' => $videoId,
-        ]);
+        ]));
     }
 
     /**

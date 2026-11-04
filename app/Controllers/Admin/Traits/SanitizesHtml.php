@@ -86,7 +86,24 @@ trait SanitizesHtml
 
                 foreach ($attrMatches as $attr) {
                     $name  = strtolower($attr[1]);
-                    $value = $attr[2] !== '' ? $attr[2] : ($attr[3] !== '' ? $attr[3] : ($attr[4] ?? ''));
+
+                    // Determine which capture group holds the value by inspecting
+                    // the first character after '=' in the full match. The
+                    // alternation leaves unused groups as empty strings rather
+                    // than unset, so isset()/empty-string checks alone are not
+                    // enough to distinguish quoted from unquoted matches.
+                    $quoteChar = '';
+                    if (preg_match('/^\S+=(?s:(.))/s', $attr[0], $quoteMatch)) {
+                        $quoteChar = $quoteMatch[1];
+                    }
+
+                    if ($quoteChar === '"') {
+                        $value = $attr[2] ?? '';
+                    } elseif ($quoteChar === "'") {
+                        $value = $attr[3] ?? '';
+                    } else {
+                        $value = $attr[4] ?? '';
+                    }
 
                     if (! in_array($name, $allowedForTag, true)) {
                         continue;

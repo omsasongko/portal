@@ -176,13 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const baseUrl = '<?= base_url() ?>';
 
     function refreshCsrf(response) {
-        // With regenerate=true, read the new CSRF token from cookie
-        var match = document.cookie.match(/(?:^|;\s*)csrf_cookie_name=([^;]+)/);
-        if (match) {
-            csrfHash = decodeURIComponent(match[1]);
-        }
+        // After each POST, CI4 regenerates the CSRF token. The cookie is
+        // HttpOnly so we read the fresh token from the JSON response body.
         if (response && response[csrfName]) {
             csrfHash = response[csrfName];
+            // Also update hidden form fields so the main form submit works
+            var fields = document.querySelectorAll('input[name="' + csrfName + '"]');
+            fields.forEach(function(f) { f.value = csrfHash; });
         }
     }
 
@@ -256,7 +256,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             body: formData,
                             credentials: 'same-origin'
                         })
-                        .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+                        .then(function(r) {
+                            return r.json().then(function(d) { return {ok: r.ok, data: d}; })
+                                .catch(function() { return {ok: false, data: {error: 'Sesi keamanan telah berubah. Muat ulang halaman.'}}; });
+                        })
                         .then(function(result) {
                             notification.close();
                             refreshCsrf(result.data);
@@ -286,7 +289,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         credentials: 'same-origin'
                     })
                     .then(function(r) { return r.json(); })
-                    .then(function(items) {
+                    .then(function(data) {
+                        refreshCsrf(data);
+                        var items = data.items || data;
                         if (!items || items.length === 0) {
                             editor.notificationManager.open({ text: 'Pustaka media kosong. Unggah gambar terlebih dahulu.', type: 'warning' });
                             return;
@@ -513,11 +518,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             body: JSON.stringify(payload),
                             credentials: 'same-origin'
                         })
-                        .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+                        .then(function(r) {
+                            return r.json().then(function(d) { return {ok: r.ok, data: d}; })
+                                .catch(function() { return {ok: false, data: {error: 'Sesi keamanan telah berubah. Muat ulang halaman.'}}; });
+                        })
                         .then(function(result) {
                             refreshCsrf(result.data);
                             if (result.ok && result.data.location) {
-                                node.setAttribute('src', result.data.location);
+                                editor.dom.setAttrib(node, 'src', result.data.location);
                                 editor.nodeChanged();
                                 editor.notificationManager.open({ text: 'Gambar berhasil dipotong.', type: 'success', timeout: 3000 });
                             } else {
@@ -575,7 +583,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 body: JSON.stringify(payload),
                                 credentials: 'same-origin'
                             })
-                            .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+                            .then(function(r) {
+                                return r.json().then(function(d) { return {ok: r.ok, data: d}; })
+                                    .catch(function() { return {ok: false, data: {error: 'Sesi keamanan telah berubah. Muat ulang halaman.'}}; });
+                            })
                             .then(function(result) {
                                 refreshCsrf(result.data);
                                 if (result.ok && result.data.html) {
