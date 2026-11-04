@@ -997,6 +997,66 @@ class Settings extends BaseController
         return redirect()->to('/admin/settings/testimonials')->with('success', 'Urutan testimoni berhasil diperbarui.');
     }
 
+    public function blog()
+    {
+        $section = $this->sectionModel->findSection('blog');
+        $content = $section ? json_decode($section['content'], true) : [];
+
+        $articleModel = new \App\Models\ArticleModel();
+        $publishedCount = $articleModel->where('status', 'published')->countAllResults();
+
+        return view('admin/settings_blog', [
+            'title'          => 'Pengaturan Blog',
+            'blog'           => $content,
+            'sectionEnabled' => $section ? (bool) $section['is_enabled'] : true,
+            'publishedCount' => $publishedCount,
+        ]);
+    }
+
+    public function doBlog()
+    {
+        $rules = [
+            'title'       => 'required|max_length[100]',
+            'subtitle'    => 'permit_empty|max_length[255]',
+            'card_layout' => 'required|in_list[grid_2_columns,grid_3_columns]',
+            'limit'       => 'required|integer|greater_than_equal_to[1]|less_than_equal_to[12]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $content = [
+            'title'       => $this->request->getPost('title'),
+            'subtitle'    => $this->request->getPost('subtitle') ?? '',
+            'card_layout' => $this->request->getPost('card_layout'),
+            'limit'       => (string) $this->request->getPost('limit'),
+        ];
+
+        $isEnabled = $this->request->getPost('is_enabled') ? 1 : 0;
+
+        $section = $this->sectionModel->findSection('blog');
+        if ($section) {
+            $this->sectionModel->update($section['id'], [
+                'title'      => $content['title'],
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+                'layout'     => $content['card_layout'],
+                'is_enabled' => $isEnabled,
+            ]);
+        } else {
+            $this->sectionModel->insert([
+                'section'    => 'blog',
+                'title'      => $content['title'],
+                'layout'     => $content['card_layout'],
+                'is_enabled' => $isEnabled,
+                'sort_order' => 5,
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        return redirect()->to('/admin/settings/blog')->with('success', 'Pengaturan Blog berhasil disimpan.');
+    }
+
     protected function validateImageUpload(string $field): ?string
     {
         $file = $this->request->getFile($field);

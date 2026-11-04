@@ -8,21 +8,21 @@ use App\Models\HomepageSectionItemModel;
 use App\Models\PortfolioCategoryModel;
 use App\Models\PortfolioItemModel;
 use App\Models\PortfolioItemCategoryModel;
-use App\Models\MenuItemModel;
-use App\Models\PageModel;
+use App\Models\ArticleModel;
 
 class Home extends BaseController
 {
     public function index(): string
     {
+        helper('menu');
+
         $settingModel = new SettingModel();
         $sectionModel = new HomepageSectionModel();
         $itemModel    = new HomepageSectionItemModel();
         $portfolioCategoryModel     = new PortfolioCategoryModel();
         $portfolioItemModel         = new PortfolioItemModel();
         $portfolioItemCategoryModel = new PortfolioItemCategoryModel();
-        $menuModel = new MenuItemModel();
-        $pageModel = new PageModel();
+        $articleModel = new ArticleModel();
 
         $identity = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
 
@@ -66,8 +66,18 @@ class Home extends BaseController
             }
         }
 
-        // Build dynamic navigation menu
-        $menuItems = $this->buildPublicMenu($menuModel, $sectionModel, $pageModel);
+        $blogSection = $sectionModel->findSection('blog');
+        $blog        = $blogSection ? json_decode($blogSection['content'], true) : [];
+        $blogEnabled = $blogSection ? (bool) $blogSection['is_enabled'] : false;
+        $blogArticles = [];
+        if ($blogEnabled) {
+            $limit = max(1, min(12, (int) ($blog['limit'] ?? 3)));
+            $blogArticles = $articleModel->latestPublished($limit);
+        }
+
+        // Build dynamic navigation menu (shared helper; section links are
+        // plain "#anchor" on the homepage for the smooth-scroll behavior).
+        $menuItems = build_public_menu(false);
 
         return view('portal/home', [
             'identity'            => $identity,
@@ -84,51 +94,10 @@ class Home extends BaseController
             'testimonials'        => $testimonials,
             'testimonialsEnabled' => $testimonialsEnabled,
             'testimonialItems'    => $testimonialItems,
+            'blog'                => $blog,
+            'blogEnabled'         => $blogEnabled,
+            'blogArticles'        => $blogArticles,
             'menuItems'           => $menuItems,
         ]);
-    }
-
-    protected function buildPublicMenu(MenuItemModel $menuModel, HomepageSectionModel $sectionModel, PageModel $pageModel): array
-    {
-        $items = $menuModel->getOrdered();
-        $result = [];
-
-        $sectionMap = [];
-        foreach ($sectionModel->findAll() as $s) {
-            $sectionMap[$s['section']] = (bool) $s['is_enabled'];
-        }
-        // home, blog, contact are always-present sections (no database toggle)
-        $sectionMap['home']    = true;
-        $sectionMap['blog']    = true;
-        $sectionMap['contact'] = true;
-
-        foreach ($items as $item) {
-            if (! $item['is_visible']) {
-                continue;
-            }
-
-            if ($item['type'] === 'section') {
-                $sectionKey = $item['target'];
-                if (! ($sectionMap[$sectionKey] ?? false)) {
-                    continue;
-                }
-                $item['url'] = '#' . $sectionKey;
-                $item['is_section'] = true;
-            } elseif ($item['type'] === 'page') {
-                $page = $pageModel->findPublishedBySlug($item['target']);
-                if (! $page) {
-                    continue;
-                }
-                $item['url'] = base_url('pages/' . $item['target']);
-                $item['is_section'] = false;
-            } elseif ($item['type'] === 'url') {
-                $item['url'] = $item['target'];
-                $item['is_section'] = false;
-            }
-
-            $result[] = $item;
-        }
-
-        return $result;
     }
 }

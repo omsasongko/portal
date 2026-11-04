@@ -50,7 +50,7 @@ class Menu extends BaseController
 
         $rules = [
             'label' => 'required|max_length[100]',
-            'type'  => 'required|in_list[section,page,url]',
+            'type'  => 'required|in_list[section,page,url,articles]',
         ];
 
         if ($type === 'section') {
@@ -60,6 +60,7 @@ class Menu extends BaseController
         } elseif ($type === 'url') {
             $rules['target_url'] = 'required|max_length[500]|valid_url_strict[https,http]';
         }
+        // type 'articles' needs no target input — it always points to the /blog listing.
 
         if (! $this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
@@ -76,6 +77,9 @@ class Menu extends BaseController
                 break;
             case 'url':
                 $target = $this->request->getPost('target_url');
+                break;
+            case 'articles':
+                $target = 'blog';
                 break;
             default:
                 $target = '';

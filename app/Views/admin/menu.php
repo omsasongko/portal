@@ -34,6 +34,7 @@
                     <select class="form-select <?= isset($errors['type']) ? 'is-invalid' : '' ?>" id="type" name="type">
                         <option value="section" <?= old('type', $edit['type'] ?? '') === 'section' ? 'selected' : '' ?>>Bagian Homepage</option>
                         <option value="page" <?= old('type', $edit['type'] ?? '') === 'page' ? 'selected' : '' ?>>Halaman</option>
+                        <option value="articles" <?= old('type', $edit['type'] ?? '') === 'articles' ? 'selected' : '' ?>>Daftar Artikel (Blog)</option>
                         <option value="url" <?= old('type', $edit['type'] ?? '') === 'url' ? 'selected' : '' ?>>URL Eksternal</option>
                     </select>
                 </div>
@@ -107,6 +108,8 @@
                                     <span class="badge text-bg-info">Bagian</span>
                                 <?php elseif ($item['type'] === 'page'): ?>
                                     <span class="badge text-bg-primary">Halaman</span>
+                                <?php elseif ($item['type'] === 'articles'): ?>
+                                    <span class="badge text-bg-dark">Daftar Artikel</span>
                                 <?php else: ?>
                                     <span class="badge text-bg-warning">URL</span>
                                 <?php endif; ?>
@@ -171,6 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sectionWrap.classList.toggle('d-none', val !== 'section');
         pageWrap.classList.toggle('d-none', val !== 'page');
         urlWrap.classList.toggle('d-none', val !== 'url');
+        // 'articles' has no target input — it always links to the /blog listing.
     }
 
     typeSelect.addEventListener('change', toggleTargetFields);

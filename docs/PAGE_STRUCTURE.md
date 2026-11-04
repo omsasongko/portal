@@ -373,14 +373,14 @@ articles / categories / tags
 - Public URL: `/pages/{slug}`. Only `status = 'published'` are publicly accessible; draft/deleted return 404.
 - Content sanitized server-side: allowed tags (p, br, strong, b, em, i, u, s, sub, sup, h1-h6, ul, ol, li, a, img, blockquote, pre, code, table, thead, tbody, tfoot, tr, th, td, hr, div, span); allowed attributes per tag; `javascript:`, `vbscript:`, `data:` URIs blocked.
 - Slug preserved when title changes unless explicitly edited.
-- TinyMCE 6 (CDN, GPL) used for rich-text editing in admin.
+- TinyMCE 6.8.5 (self-hosted at `public/assets/admin/vendor/tinymce/`, GPL, no external API key) used for rich-text editing in admin; Indonesian language pack at `langs/id.js`.
 
 ### Menu Items (`menu_items` table)
 | Column      | Type                              | Notes                                      |
 |-------------|-----------------------------------|--------------------------------------------|
 | id          | INT UNSIGNED AUTO_INCREMENT       | Primary key                                |
 | label       | VARCHAR(100) NOT NULL             | Independent of target title                |
-| type        | ENUM('section','page','url')      | Target type                                |
+| type        | ENUM('section','page','url','articles') | Target type ('articles' = the /blog listing, fixed target 'blog') |
 | target      | VARCHAR(500) NOT NULL             | Section slug, page slug, or external URL   |
 | sort_order  | INT UNSIGNED NOT NULL DEFAULT 0   |                                            |
 | is_visible  | TINYINT(1) UNSIGNED DEFAULT 1     |                                            |
@@ -392,3 +392,55 @@ articles / categories / tags
 - Section links: `#section` on homepage, `/#section` on standalone pages.
 - External URLs validated as HTTP/HTTPS; open in new tab with `rel="noopener"`.
 - Deleting a menu item does not delete target content.
+
+## 10. Articles & Blog (Implemented)
+
+### Articles (`articles` table)
+| Column        | Type                          | Notes                                          |
+|---------------|-------------------------------|------------------------------------------------|
+| id            | INT UNSIGNED AUTO_INCREMENT   | Primary key                                    |
+| title         | VARCHAR(200) NOT NULL         |                                                |
+| slug          | VARCHAR(200) NOT NULL UNIQUE  | Editable, auto-generated from title when blank; preserved when only the title changes |
+| excerpt       | VARCHAR(500) NULL             | Shown on homepage cards and `/blog` listing    |
+| body          | TEXT NULL                     | Rich-text HTML, server-side sanitized (same allowlist as pages) |
+| cover_image   | VARCHAR(255) NULL             | Path into the shared `media` library           |
+| cover_alt     | VARCHAR(255) NULL             | Accessibility text                             |
+| category_id   | INT UNSIGNED NULL             | FK-like reference to `categories` (validated in controller) |
+| detail_layout | ENUM('full','sidebar')        | Default 'sidebar'; predefined templates only   |
+| status        | ENUM('draft','published')     | Default 'draft'                                |
+| published_at  | DATE NULL                     | Defaults to today when publishing without one  |
+| created_at    | DATETIME NULL                 |                                                |
+| updated_at    | DATETIME NULL                 |                                                |
+
+### Article ↔ Tag pivot (`article_tags` table)
+| Column     | Type                        | Notes                              |
+|------------|-----------------------------|------------------------------------|
+| article_id | INT UNSIGNED NOT NULL       | Composite PK (article_id, tag_id)  |
+| tag_id     | INT UNSIGNED NOT NULL       | Indexed                            |
+
+- Tag links are replaced wholesale on save (`ArticleModel::syncTags`).
+- Public URLs: `/blog` (paginated listing, 6 per page, published only, newest first) and `/blog/{slug}` (detail). Draft/deleted/missing → 404.
+- Detail layouts: `full` = wide reading area (col-12); `sidebar` = reading area (col-lg-8) + related-articles sidebar (same category first, newest first, max 3).
+- Authenticated preview: `/admin/articles/preview/{id}` renders the public detail view for any status with a "Pratinjau admin" banner and `noindex, nofollow` meta. Anonymous → redirect to login.
+- Deleting an article removes its `article_tags` rows and the article row only — shared media (cover image) is never deleted.
+- Cover image: upload (extension + MIME allowlist, random filename, auto-registered in `media`) or select an existing library item via radio.
+
+### Blog homepage section (`homepage_sections` row `section='blog'`)
+- `layout` mirrors `content.card_layout` (`grid_2_columns` / `grid_3_columns`); `content` JSON: `{title, subtitle, card_layout, limit}`; default `sort_order` 5.
+- Homepage renders the `limit` newest published articles (clamped 1–12); when `is_enabled=0` the `#blog` section is hidden and its menu link is auto-omitted (same rule as other sections).
+- Admin screen: `/admin/settings/blog` (Pengaturan > Blog) — title, subtitle, visibility, limit, card columns, plus an info alert explaining that menu ordering (Menu), homepage section ordering (per-section settings), Blog card layout (this screen), and article detail layout (per-article form) are four separate settings.
+
+### Menu integration
+- New menu type `articles` (label suggestion "Daftar Artikel (Blog)"): no target input, always stores target `'blog'`, renders an absolute link to `/blog`, and is always kept in public navigation (it has its own route).
+- The pre-existing `section`-type item targeting `blog` keeps working as the homepage `#blog` anchor and follows the section-visibility rule.
+- Public menu building is centralized in `app/Helpers/menu_helper.php` → `build_public_menu(bool $homepageQualified)`; Home passes `false` (plain `#anchor` for the 300 ms smooth-scroll), Page/Blog pass `true` (`/#anchor`).
+
+### Category/tag deletion policy (final, now that article relations exist)
+- Deleting a category referenced by any `articles.category_id`, or a tag referenced by any `article_tags.tag_id`, is **blocked** with the message "… masih digunakan oleh artikel." (guards in `Admin\Categories::delete` / `Admin\Tags::delete`).
+- To delete, first edit or delete the referencing articles. This supersedes the PRD note about cascading tag associations; blocking was chosen to avoid silent data loss.
+
+### Fitness demo content (`php spark demo:fitness`)
+- Explicit CLI command only — never part of migrations. Idempotent: matches by article slug, category/tag slug, and media filename; re-runs skip existing rows without overwriting.
+- Creates: Fitness category; tags Gym / Jurnal Latihan / Perlengkapan Latihan; 3 articles ("Mengenal Area dan Peralatan di Pusat Kebugaran" — published, sidebar; "Catatan Perjalanan Fitness: Menyusun Jurnal Aktivitas" — published, full; "Isi Tas Gym: Perlengkapan untuk Sesi Latihan" — draft, sidebar), each marked `[Demo]` in the excerpt and a `[Konten demo …]` note at the top of the body.
+- Cover photos: 3 local JPEGs (Unsplash License — free for commercial/non-commercial use, no attribution required), stored in `public/assets/portal/uploads/demo/` with sources recorded in that folder's `README.md`; the command copies them to `uploads/media/` and registers `media` rows.
+- Content is editorial (gym orientation, journaling, gear checklist) and makes no medical claims.

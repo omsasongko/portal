@@ -79,7 +79,7 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                         </li>
 
                         <?php
-                        $settingsChildren = ['identity', 'hero', 'about', 'services', 'portfolio', 'testimonials'];
+                        $settingsChildren = ['identity', 'hero', 'about', 'services', 'portfolio', 'testimonials', 'blog'];
                         $isSettingsOpen = ($segment2 === 'settings');
                         ?>
                         <li class="nav-item <?= $isSettingsOpen ? 'menu-open' : '' ?>">
@@ -127,6 +127,12 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                                         <p>Testimoni</p>
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="<?= base_url('admin/settings/blog') ?>" class="nav-link <?= $segment2 === 'settings' && $segment3 === 'blog' ? 'active' : '' ?>">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Blog</p>
+                                    </a>
+                                </li>
                             </ul>
                         </li>
 
@@ -141,6 +147,13 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                             <a href="<?= base_url('admin/tags') ?>" class="nav-link <?= $segment2 === 'tags' ? 'active' : '' ?>">
                                 <i class="nav-icon bi bi-tags"></i>
                                 <p>Tag</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="<?= base_url('admin/articles') ?>" class="nav-link <?= $segment2 === 'articles' ? 'active' : '' ?>">
+                                <i class="nav-icon bi bi-newspaper"></i>
+                                <p>Artikel</p>
                             </a>
                         </li>
 

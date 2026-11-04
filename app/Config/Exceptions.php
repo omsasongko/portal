@@ -5,6 +5,7 @@ namespace Config;
 use CodeIgniter\Config\BaseConfig;
 use CodeIgniter\Debug\ExceptionHandler;
 use CodeIgniter\Debug\ExceptionHandlerInterface;
+use App\Libraries\DatabaseExceptionHandler;
 use Psr\Log\LogLevel;
 use Throwable;
 
@@ -101,6 +102,11 @@ class Exceptions extends BaseConfig
      */
     public function handler(int $statusCode, Throwable $exception): ExceptionHandlerInterface
     {
+        if ($exception instanceof \CodeIgniter\Database\Exceptions\DatabaseException
+            && str_contains($exception->getMessage(), 'Unable to connect')) {
+            return new DatabaseExceptionHandler($this);
+        }
+
         return new ExceptionHandler($this);
     }
 }

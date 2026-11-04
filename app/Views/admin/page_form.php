@@ -62,7 +62,7 @@
 <?php $this->endSection() ?>
 
 <?php $this->section('scripts') ?>
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="<?= base_url('assets/admin/vendor/tinymce/tinymce.min.js') ?>" referrerpolicy="origin"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-generate slug from title (only for new pages without an existing slug)
@@ -91,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
     tinymce.init({
         selector: '#content',
         height: 400,
+        language: 'id',
         menubar: 'edit insert format table',
         plugins: 'lists link image table code wordcount',
         toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist | link image | table | code',

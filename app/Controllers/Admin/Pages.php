@@ -3,32 +3,14 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
+use App\Controllers\Admin\Traits\SanitizesHtml;
 use App\Models\PageModel;
 
 class Pages extends BaseController
 {
+    use SanitizesHtml;
+
     protected PageModel $pageModel;
-
-    protected array $allowedTags = [
-        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'ul', 'ol', 'li',
-        'a', 'img',
-        'blockquote', 'pre', 'code',
-        'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
-        'hr', 'div', 'span',
-    ];
-
-    protected array $allowedAttributes = [
-        'a'     => ['href', 'title', 'target', 'rel'],
-        'img'   => ['src', 'alt', 'title', 'width', 'height'],
-        'td'    => ['colspan', 'rowspan'],
-        'th'    => ['colspan', 'rowspan'],
-        'div'   => ['class'],
-        'span'  => ['class'],
-        'p'     => ['class'],
-        'table' => ['class'],
-    ];
 
     public function __construct()
     {
@@ -144,63 +126,5 @@ class Pages extends BaseController
         $this->pageModel->delete($id);
 
         return redirect()->to(base_url('admin/pages'))->with('success', 'Halaman berhasil dihapus.');
-    }
-
-    protected function sanitizeHtml(string $html): string
-    {
-        if (empty(trim($html))) {
-            return '';
-        }
-
-        $allowedTagStr = implode('', array_map(fn($t) => "<{$t}>", $this->allowedTags));
-        $html = strip_tags($html, $allowedTagStr);
-
-        // Parse and filter attributes
-        $html = preg_replace_callback(
-            '/<(\w+)((?:\s+[^>]*)?)>/s',
-            function ($matches) {
-                $tag = strtolower($matches[1]);
-                $attrStr = $matches[2];
-
-                if (! in_array($tag, $this->allowedTags, true)) {
-                    return '';
-                }
-
-                if (empty(trim($attrStr))) {
-                    return "<{$tag}>";
-                }
-
-                $allowedForTag = $this->allowedAttributes[$tag] ?? [];
-                if (empty($allowedForTag)) {
-                    return "<{$tag}>";
-                }
-
-                $filteredAttrs = '';
-                preg_match_all('/(\w[\w-]*)=(?:"([^"]*)"|\'([^\']*)\'|(\S+))/', $attrStr, $attrMatches, PREG_SET_ORDER);
-                foreach ($attrMatches as $attr) {
-                    $name  = strtolower($attr[1]);
-                    $value = $attr[2] !== '' ? $attr[2] : ($attr[3] !== '' ? $attr[3] : ($attr[4] ?? ''));
-
-                    if (! in_array($name, $allowedForTag, true)) {
-                        continue;
-                    }
-
-                    // Block javascript: URLs in href and src
-                    if (in_array($name, ['href', 'src'], true)) {
-                        $testVal = strtolower(trim(preg_replace('/[\x00-\x20]+/', '', $value)));
-                        if (preg_match('/^(?:javascript|vbscript|data):/i', $testVal)) {
-                            continue;
-                        }
-                    }
-
-                    $filteredAttrs .= ' ' . $name . '="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '"';
-                }
-
-                return "<{$tag}{$filteredAttrs}>";
-            },
-            $html
-        );
-
-        return $html;
     }
 }

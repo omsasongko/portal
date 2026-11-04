@@ -289,78 +289,58 @@
         </div><!-- end container -->
     </div><!-- end section -->
     <?php endif; ?>
-<div id="blog" class="section lb">
-		<div class="container">
-			<div class="section-title text-start">
-                <h3>Blog</h3>
-                <p>Quisque eget nisl id nulla sagittis auctor quis id. Aliquam quis vehicula enim, non aliquam risus.</p>
+<?php if ($blogEnabled): ?>
+    <div id="blog" class="section lb">
+        <div class="container">
+            <div class="section-title text-start">
+                <h3><?= esc($blog['title'] ?? 'Blog') ?></h3>
+                <?php if (! empty($blog['subtitle'])): ?>
+                <p><?= esc($blog['subtitle']) ?></p>
+                <?php endif; ?>
             </div><!-- end title -->
-			
-			<div class="row">
-				<div class="col-md-4 col-sm-6 col-lg-4">
-					<div class="post-box">
-						<div class="post-thumb">
-							<img src="<?= base_url('assets/portal/uploads/blog-01.jpg') ?>" class="img-fluid" alt="post-img" />
-							<div class="date">
-								<span>06</span>
-								<span>Aug</span>
-							</div>
-						</div>
-						<div class="post-info">
-							<h4>Quisque auctor lectus interdum nisl accumsan venenatis.</h4>
-							<ul>
-                                <li>by admin</li>
-                                <li>Apr 21, 2018</li>
-                                <li><a href="#"><b> Comments</b></a></li>
-                            </ul>
-							<p>Etiam materials ut mollis tellus, vel posuere nulla. Etiam sit amet massa sodales aliquam at eget quam. Integer ultricies et magna quis.</p>
-						</div>
-					</div>
-				</div>
-				<div class="col-md-4 col-sm-6 col-lg-4">
-					<div class="post-box">
-						<div class="post-thumb">
-							<img src="<?= base_url('assets/portal/uploads/blog-02.jpg') ?>" class="img-fluid" alt="post-img" />
-							<div class="date">
-								<span>06</span>
-								<span>Aug</span>
-							</div>
-						</div>
-						<div class="post-info">
-							<h4>Quisque auctor lectus interdum nisl accumsan venenatis.</h4>
-							<ul>
-                                <li>by admin</li>
-                                <li>Apr 21, 2018</li>
-                                <li><a href="#"><b> Comments</b></a></li>
-                            </ul>
-							<p>Etiam materials ut mollis tellus, vel posuere nulla. Etiam sit amet massa sodales aliquam at eget quam. Integer ultricies et magna quis.</p>
-						</div>
-					</div>
-				</div>
-				<div class="col-md-4 col-sm-6 col-lg-4">
-					<div class="post-box">
-						<div class="post-thumb">
-							<img src="<?= base_url('assets/portal/uploads/blog-03.jpg') ?>" class="img-fluid" alt="post-img" />
-							<div class="date">
-								<span>06</span>
-								<span>Aug</span>
-							</div>
-						</div>
-						<div class="post-info">
-							<h4>Quisque auctor lectus interdum nisl accumsan venenatis.</h4>
-							<ul>
-                                <li>by admin</li>
-                                <li>Apr 21, 2018</li>
-                                <li><a href="#"><b> Comments</b></a></li>
-                            </ul>
-							<p>Etiam materials ut mollis tellus, vel posuere nulla. Etiam sit amet massa sodales aliquam at eget quam. Integer ultricies et magna quis.</p>
-						</div>
-					</div>
-				</div>
-			</div>
-			
-		</div>
-	</div>
+
+            <?php if (empty($blogArticles)): ?>
+                <p class="text-muted">Belum ada artikel yang diterbitkan.</p>
+            <?php else: ?>
+                <?php $blogColClass = ($blog['card_layout'] ?? 'grid_3_columns') === 'grid_2_columns' ? 'col-md-6 col-lg-6' : 'col-md-4 col-sm-6 col-lg-4'; ?>
+                <div class="row">
+                    <?php foreach ($blogArticles as $ba): ?>
+                    <div class="<?= $blogColClass ?>">
+                        <div class="post-box">
+                            <?php if (! empty($ba['cover_image'])): ?>
+                            <div class="post-thumb">
+                                <a href="<?= base_url('blog/' . $ba['slug']) ?>">
+                                    <img src="<?= base_url($ba['cover_image']) ?>" class="img-fluid" alt="<?= esc($ba['cover_alt'] ?? $ba['title']) ?>" />
+                                </a>
+                                <?php if (! empty($ba['published_at'])): ?>
+                                <div class="date">
+                                    <span><?= esc(date('d', strtotime($ba['published_at']))) ?></span>
+                                    <span><?= esc(date('M', strtotime($ba['published_at']))) ?></span>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+                            <div class="post-info">
+                                <h4><a href="<?= base_url('blog/' . $ba['slug']) ?>" style="color:inherit;"><?= esc($ba['title']) ?></a></h4>
+                                <ul>
+                                    <?php if (! empty($ba['published_at'])): ?>
+                                    <li><?= esc(date('d M Y', strtotime($ba['published_at']))) ?></li>
+                                    <?php endif; ?>
+                                    <li><a href="<?= base_url('blog') ?>"><b>Lihat semua artikel</b></a></li>
+                                </ul>
+                                <?php if (! empty($ba['excerpt'])): ?>
+                                <p><?= esc($ba['excerpt']) ?></p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div id="contact" class="section db">
         <div class="container">

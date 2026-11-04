@@ -8,6 +8,8 @@ use CodeIgniter\Router\RouteCollection;
 
 $routes->get('/', 'Home::index');
 $routes->get('pages/(:segment)', 'Page::show/$1');
+$routes->get('blog', 'Blog::index');
+$routes->get('blog/(:segment)', 'Blog::show/$1');
 
 // Admin auth routes
 $routes->get('admin/login', 'Admin\Auth::loginForm');
@@ -44,6 +46,8 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('settings/testimonials/card', 'Admin\Settings::testimonialSave');
     $routes->post('settings/testimonials/card/delete', 'Admin\Settings::testimonialDelete');
     $routes->post('settings/testimonials/reorder', 'Admin\Settings::testimonialReorder');
+    $routes->get('settings/blog', 'Admin\Settings::blog');
+    $routes->post('settings/blog', 'Admin\Settings::doBlog');
 
     // Article taxonomy (categories and tags)
     $routes->get('categories', 'Admin\Categories::index');
@@ -67,4 +71,16 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('menu/move-up', 'Admin\Menu::moveUp');
     $routes->post('menu/move-down', 'Admin\Menu::moveDown');
     $routes->post('menu/toggle-visibility', 'Admin\Menu::toggleVisibility');
+
+    // Articles
+    $routes->get('articles', 'Admin\Articles::index');
+    $routes->get('articles/create', 'Admin\Articles::create');
+    $routes->get('articles/edit/(:num)', 'Admin\Articles::edit/$1');
+    $routes->get('articles/preview/(:num)', 'Admin\Articles::preview/$1');
+    $routes->post('articles/save', 'Admin\Articles::save');
+    $routes->post('articles/delete', 'Admin\Articles::delete');
+    $routes->post('articles/upload-image', 'Admin\Articles::uploadImage');
+    $routes->post('articles/crop-image', 'Admin\Articles::cropImage');
+    $routes->get('articles/media-library', 'Admin\Articles::mediaLibrary');
+    $routes->post('articles/embed-youtube', 'Admin\Articles::embedYoutube');
 });

@@ -1,7 +1,7 @@
 <?php
 $name    = $name ?? 'image';
 $current = $current ?? '';
-$accept  = $accept ?? 'image/*';
+$accept  = $accept ?? 'image/jpeg,image/png,image/gif,image/webp';
 $found   = false;
 ?>
 <input type="hidden" name="current_<?= esc($name) ?>" value="<?= esc($current) ?>">
@@ -12,7 +12,7 @@ $found   = false;
 <?php endif; ?>
 <div class="mb-2">
     <input type="file" class="form-control" name="<?= esc($name) ?>" id="<?= esc($name) ?>" accept="<?= esc($accept) ?>">
-    <div class="form-text">Unggah gambar baru untuk menggantikan yang dipilih. Maksimal 2 MB, format JPG/PNG/WebP/ICO.</div>
+    <div class="form-text">Unggah gambar baru untuk menggantikan yang dipilih. Ukuran 50 KB – 10 MB, format JPG/PNG/GIF/WebP.</div>
 </div>
 <?php if (! empty($media)): ?>
     <div class="row g-2">

@@ -1,12 +1,89 @@
 # Portal — Progress Log
 
 ## Last Updated
-2026-11-03
+2026-11-04
 
 ## Status
-Pages and Navigation Menu management implemented. Admin interface uses AdminLTE 4.10.1. All completed modules below are committed/pushed to `origin/main` (except AdminLTE migration and Pages/Navigation changes which are uncommitted). Next planned milestone is Article management; not yet started.
+Articles module (admin CRUD + public blog) implemented with a repeat-safe fitness demo, Blog layout settings, menu integration, and a self-hosted TinyMCE editor with full image management (upload, media-library selection, resize presets, alignment, visual cropping, animated GIF support) and YouTube video embedding. Database connection error handling added (HTTP 503 with clean Indonesian error page). Admin interface uses AdminLTE 4.10.1. Pages and Navigation Menu management implemented. All completed modules below are committed/pushed to `origin/main` (except AdminLTE migration, Pages/Navigation, Articles, image management, and error-handling changes which are uncommitted). Backend verified via curl; visual editor interactions require owner manual testing (see Verification section).
 
 ## Completed
+
+### Database Connection Error Handling (Ready for Owner Review — Uncommitted)
+- [x] Custom `App\Libraries\DatabaseExceptionHandler` implementing `ExceptionHandlerInterface` (framework's `ExceptionHandler` is `final` — cannot be extended)
+- [x] `Config\Exceptions::handler()` routes `DatabaseException` with "Unable to connect" to the custom handler; all other exceptions use the default framework handler
+- [x] Returns HTTP 503 with a self-contained Indonesian error page: "Maaf, database tidak terhubung." + "Silakan coba beberapa saat lagi." + "Coba Lagi" reload button
+- [x] Error page works without database access (plain HTML, no framework views, no config values)
+- [x] No stack traces, SQL, credentials, database configuration, or filesystem paths exposed in the response body
+- [x] Diagnostic details logged server-side (`log_message('critical', ...)`) with route info; credentials redacted before logging
+- [x] Handles failures during filters/authentication (login POST, admin redirect, public pages — all return 503)
+- [x] `Cache-Control: no-store` and `noindex, nofollow` meta on the error page
+- [x] Normal operation resumes immediately when the database comes back online (verified: all routes return 200 after restart)
+
+### Articles Module & Public Blog (Ready for Owner Review — Uncommitted)
+- [x] Migration `2026-11-04-100000_CreateArticlesBlogSection`: `articles` + `article_tags` tables, additive `menu_items.type` ENUM extension (`articles`), guarded `blog` homepage section seed (never overwrites saved settings)
+- [x] `ArticleModel`: findBySlug, findPublishedBySlug, latestPublished, publishedPaginated, relatedPublished, tagIdsForArticle, syncTags
+- [x] Shared traits extracted (behavior preserved): `Admin\Traits\SanitizesHtml` (tag/attribute allowlist, strips `script`/event handlers/`javascript:`/`data:` URLs) now used by both Pages and Articles; `Admin\Traits\HandlesImageUpload` (extension+MIME allowlist, stores to media library)
+- [x] Shared `menu_helper.php` → `build_public_menu(bool $homepageQualified)` used by Home (plain `#anchor` for smooth-scroll), Page, and Blog (homepage-qualified `/#anchor`); auto-omits hidden items, disabled sections, unpublished/missing pages; always keeps the `articles` listing item
+- [x] Admin "Artikel" sidebar entry (`bi-newspaper`), list/create/edit/delete, draft/published status, authenticated draft preview rendering the public detail view with a preview banner + `noindex` meta
+- [x] Article fields: title, unique editable slug (preserved when only title changes; auto-generated from title when blank), excerpt (≤500), rich-text body, cover image + alt via existing media library/upload, existing category, existing tags (multi-select), publication date (defaults to today when publishing without a date)
+- [x] Per-article detail layout radio: `full` (wide reading area) or `sidebar` (reading area + related-articles sidebar) — predefined responsive templates only
+- [x] Deleting an article removes its tag links + row but never deletes shared media (cover stays in the library)
+- [x] Self-hosted TinyMCE 6.8.5 at `public/assets/admin/vendor/tinymce/` (GPL `license_key: 'gpl'`, no external API key/CDN) with Indonesian language pack `langs/id.js` (from npm `tinymce-i18n`); `valid_elements` mirrors the server-side allowlist; page_form.php also switched to the local build
+- [x] Public routes: `/blog` (paginated listing, 6/page, published only) and `/blog/{slug}` (detail); draft/deleted/missing → 404; reuse public styling/header/footer/dynamic nav
+- [x] Homepage Blog placeholders replaced with a dynamic `$blogEnabled`-guarded section: title/subtitle from settings, `card_layout` → 2/3 columns, `limit` newest published articles, "Belum ada artikel" empty state, "Lihat semua artikel" link
+- [x] Blog settings screen (Indonesian) at `/admin/settings/blog`: title, subtitle, visibility toggle, homepage article limit (1–12), 2/3-column cards; includes an info alert explaining that menu ordering, homepage section ordering, Blog card layout, and per-article detail layout are separate settings
+- [x] Menu manager gains type "Daftar Artikel (Blog)" (fixed target `blog`, links to `/blog`); existing "Blog" section menu target (`#blog`) keeps working
+- [x] Fitness demo CLI `php spark demo:fitness` (never runs in migrations): idempotent by slug/filename; creates Fitness category, 3 tags (Gym/Jurnal Latihan/Perlengkapan Latihan), copies 3 local Unsplash cover photos into `uploads/media/` and registers them, inserts 3 clearly-marked demo articles (2 published, 1 draft) with tag sync; sources/license recorded in `public/assets/portal/uploads/demo/README.md`; editorial content, no medical claims
+- [x] Category/tag deletion guards (previously dormant pending `articles`/`article_tags`) are now active and verified: deletion is blocked with "masih digunakan oleh artikel" while referenced
+
+### Article Image Management & YouTube Embedding (Ready for Owner Review — Uncommitted)
+
+**Manual acceptance findings addressed:**
+- ✗ Editor's Insert/Edit Image dialog only offered a Source URL — now replaced with "Unggah Gambar" and "Pilih dari Pustaka" toolbar buttons
+- ✗ Cover upload showed incorrect "2 MB, JPG/PNG/WebP/ICO" — now shows "50 KB – 10 MB, JPG/PNG/GIF/WebP"
+- ✗ No inline image management — now has upload, library selection, resize, alignment, crop, and YouTube embed
+
+**Backend endpoints (all inside admin auth group):**
+- [x] `POST articles/upload-image` — multipart file upload, validates extension+MIME+size+content via getimagesize(), stores in media library, returns JSON `{location: "..."}`
+- [x] `POST articles/crop-image` — accepts JSON with src/x/y/width/height, validates coordinates within image bounds, creates new media file preserving format/transparency, rejects animated GIF crop with Indonesian explanation
+- [x] `GET articles/media-library` — returns JSON array of all image media items (newest first)
+- [x] `POST articles/embed-youtube` — validates URL, extracts video ID (watch/youtu.be/shorts), returns responsive youtube-nocookie.com iframe HTML
+
+**Upload rules (HandlesImageUpload trait updated):**
+- [x] Allowed extensions: jpg, jpeg, png, gif, webp (ICO removed)
+- [x] Both MIME-detected extension AND client filename extension validated
+- [x] Minimum 50 KB (51,200 bytes), maximum 10 MB (10,485,760 bytes)
+- [x] getimagesize() content validation to reject disguised/corrupt files
+- [x] PHP web runtime: upload_max_filesize=10M, post_max_size=16M — sufficient, no changes needed
+
+**HTML sanitization (SanitizesHtml trait extended):**
+- [x] `img` allows: src, alt, title, width, height, style, class
+- [x] `div` allows: class, style
+- [x] `iframe` added to allowed tags: src (restricted to youtube-nocookie.com/embed/ only), width, height, frameborder, allow, allowfullscreen, title, class, style
+- [x] Style sanitization: whitelist of CSS properties (width, max-width, height, display, margin, float, text-align, position, padding-bottom, overflow, top, left, aspect-ratio, border)
+- [x] Class filtering: img classes limited to img-fluid, img-align-left/center/right; div classes limited to video-embed-wrapper, img-align-left/center/right
+- [x] Scripts, event handlers, javascript:/vbscript:/data: URLs, arbitrary iframe sources all rejected
+
+**TinyMCE editor integration (article_form.php):**
+- [x] Custom toolbar buttons: "Unggah Gambar" (file upload), "Pilih dari Pustaka" (media library grid dialog)
+- [x] Image alignment buttons: left/center/right via CSS classes
+- [x] Resize preset buttons: 25%, 50%, 75%, 100% of content width
+- [x] "Potong" crop button with visual drag-select overlay dialog, Apply/Cancel, Indonesian coordinate display
+- [x] "YouTube" embed button with URL input dialog, Indonesian help text about supported formats and internet requirement
+- [x] Click to select image, double-click for alt text edit + remove dialog
+- [x] CSRF token sent as X-CSRF-TOKEN header for JSON endpoints; cookie-based refresh for regenerate=true
+- [x] valid_elements updated to match server-side allowlist
+- [x] content_style provides WYSIWYG preview of alignment/resize/video in editor
+
+**Public/preview CSS (blog_detail.php):**
+- [x] `.article-body img.img-align-left/center/right` for image alignment
+- [x] `.article-body .video-embed-wrapper` with responsive 56.25% padding-bottom pattern
+- [x] `max-width: 100%; height: auto;` on all article body images
+
+**Animated GIF handling:**
+- [x] Upload and display: animated GIFs upload normally and animation is preserved (GIF format stored as-is)
+- [x] Crop rejection: binary GIF parser counts image descriptors (0x2C); >1 frame returns "Pemotongan tidak tersedia untuk GIF animasi. Gunakan gambar statis."
+- [x] Resize/alignment still work for animated GIFs (CSS-only, no re-encoding)
 
 ### AdminLTE 4.10.1 Admin Interface Migration (Ready for Owner Review)
 - [x] Template: AdminLTE v4.10.1 (MIT, ColorlibHQ), Bootstrap 5.3.8 bundled in adminlte.css, no jQuery dependency
@@ -187,6 +264,103 @@ Pages and Navigation Menu management implemented. Admin interface uses AdminLTE 
 - [x] Updated `PROGRESS.md`
 
 ## Verification Results
+
+### Database Error Handling (2026-11-04, via curl with DB stopped/restarted)
+
+### Image Management & YouTube Embedding (2026-11-04, via curl)
+**Upload endpoint (POST articles/upload-image):**
+- [x] Valid JPEG (227 KB) uploaded → JSON `{location: "..."}` returned, file stored in media library
+- [x] Valid PNG with transparency (166 KB) uploaded successfully
+- [x] Valid GIF (static, 275 KB) uploaded successfully
+- [x] Animated GIF (51 KB, 2 frames) uploaded successfully (animation preserved as raw file)
+- [x] File < 50 KB (691 bytes) → rejected: "Ukuran file terlalu kecil. Minimum 50 KB."
+- [x] File with .ico extension (JPEG content) → rejected: "Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP."
+- [x] PHP script disguised as .jpg → rejected: "Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP." (MIME detection catches it)
+- [x] File over 10 MB → rejected before validation (PHP upload_max_filesize limit)
+
+**Crop endpoint (POST articles/crop-image):**
+- [x] Valid JPEG crop → new file created with random name, original file preserved
+- [x] Static GIF crop → works, preserves GIF format
+- [x] PNG crop → works, preserves format (transparency preservation via alpha channel)
+- [x] Animated GIF crop → rejected: "Pemotongan tidak tersedia untuk GIF animasi. Gunakan gambar statis."
+- [x] Out-of-bounds coordinates → rejected: "Area pemotongan melebihi dimensi gambar."
+- [x] Original media file preserved after crop (verified: both files exist with different sizes)
+
+**Media library endpoint (GET articles/media-library):**
+- [x] Returns JSON array of all image media items (17+ items) with url/title/alt
+- [x] Ordered by id DESC (newest first)
+- [x] Only image MIME types included
+
+**YouTube embed endpoint (POST articles/embed-youtube):**
+- [x] `youtube.com/watch?v=ID` → valid, returns responsive iframe HTML with youtube-nocookie.com
+- [x] `youtu.be/ID` → valid
+- [x] `youtube.com/shorts/ID` → valid
+- [x] Invalid URL (`notreal.com`) → rejected: "URL YouTube tidak valid. Gunakan link dari youtube.com atau youtu.be."
+
+**Sanitization:**
+- [x] `<script>alert(1)</script>` → script tag stripped, text content preserved
+- [x] `<img onerror="alert(2)">` → onerror handler stripped, img tag preserved
+- [x] `<iframe src="https://evil.com">` → src stripped (only youtube-nocookie.com/embed/ allowed)
+- [x] Image alignment classes (img-align-center), styles (width: 50%), and YouTube embeds all survive sanitization
+
+**Save/reopen persistence:**
+- [x] Article with inline image (class, style, alt) + YouTube embed saved → HTTP 303 redirect
+- [x] Reopened in edit form → all image settings and YouTube embed preserved in textarea
+- [x] Public article page renders all alignment CSS, video wrapper, and responsive styles
+
+**Regression (no breakage):**
+- [x] Homepage → 200; Blog list → 200; Existing article detail → 200; Page → 200
+- [x] Admin articles/pages/menu → 200; Preview → 200
+- [x] Data intact: 3 pages, 7 menu items, 4 articles (3 original + 1 test), 1 category, 3 tags
+
+**Requires owner manual testing (visual interactions not exercisable via curl):**
+- [ ] Click "Unggah Gambar" button in editor toolbar → file picker opens → image inserts at cursor
+- [ ] Click "Pilih dari Pustaka" button → media grid dialog → click image → inserts at cursor
+- [ ] Click image in editor → image selected (blue handles visible)
+- [ ] Double-click image → alt text dialog opens → edit alt → save → alt persists
+- [ ] Double-click image → "Hapus Gambar" button → image removed from content, media file preserved
+- [ ] Click alignment buttons (left/center/right) with image selected → alignment changes visually in editor
+- [ ] Click resize buttons (25%/50%/75%/100%) with image selected → width changes visually in editor
+- [ ] Click "Potong" with image selected → crop overlay appears → drag selection → "Terapkan" → image src updated to cropped version
+- [ ] Click "Potong" → "Batal" → image unchanged
+- [ ] Click "YouTube" → enter URL → "Sematkan" → responsive video player appears in editor
+- [ ] Upload failure (e.g. network error) → error notification shown, article content preserved
+- [ ] Animated GIF uploaded → plays animation in editor and public page
+- [ ] Animated GIF → "Potong" → rejected with "Pemotongan tidak tersedia untuk GIF animasi."
+- [ ] Cover upload independent from inline images (changing cover doesn't affect body images)
+- [ ] Mobile/responsive rendering of aligned images and video embeds
+- [x] DB stopped → `GET /` returns HTTP 503 with clean Indonesian error page (2557 bytes, self-contained HTML)
+- [x] DB stopped → `GET /blog`, `GET /blog/{slug}`, `GET /pages/{slug}`, `POST /admin/login` all return HTTP 503
+- [x] DB stopped → `GET /admin/login` returns 200 (no DB hit needed for form render); `GET /admin`, `GET /admin/articles` return 302 (auth filter redirect, no DB hit)
+- [x] 503 response body contains zero matches for: stack trace, exception class names, APPPATH/ROOTPATH/FCPATH, filesystem paths (/Volumes, /var, /tmp), database host/port/name (mariadb, 3307, portal_db), credentials, .env, PHP filenames, or trace line numbers
+- [x] Server-side log contains `CRITICAL` entries with route info (`GET /`, `POST admin/login`, etc.) and the message "Unable to connect to the database" — no credentials in log
+- [x] Response headers include `Cache-Control: no-store` and status line `HTTP/1.1 503 Service Unavailable`
+- [x] DB restarted → all routes immediately recover (homepage 200, blog 200, admin login 200, article detail 200, page detail 200)
+- [x] Existing data fully intact after recovery (3 pages, 7 menu items, 17 media, 3 articles, 1 category, 3 tags)
+- [x] PHP lint clean on both `app/Libraries/DatabaseExceptionHandler.php` and `app/Config/Exceptions.php`
+
+### Articles Module (2026-11-04, via curl + browser)
+- [x] Anonymous access to `/admin/articles`, `/admin/articles/create`, `/admin/articles/preview/{id}`, `/admin/settings/blog` → 302 to login
+- [x] `php spark demo:fitness` run twice: first creates 3 articles + Fitness category + 3 tags + 3 media; second run skips all (0 created, 3 skipped) — idempotent
+- [x] Public `/blog` lists only the 2 published demo articles (draft excluded); `/blog/{published-slug}` → 200; `/blog/{draft-slug}` → 404; `/blog/{missing-slug}` → 404
+- [x] Detail layout switching: `sidebar` article renders col-lg-8 + "Artikel Terkait"; `full` article renders col-12, no related sidebar
+- [x] Cover images render on listing/detail; media file served (HTTP 200)
+- [x] Article create draft → 303; body XSS sanitized server-side (`<script>`, `onerror`, `onclick`, `javascript:` href all stripped)
+- [x] Duplicate slug on create → rejected (redirects back to create form, no new row)
+- [x] Editing title only → slug preserved (`artikel-uji-verifikasi` unchanged after title edit)
+- [x] Cover upload: `.php` rejected (cover stays NULL); valid JPG accepted, stored in `uploads/media/`, registered in `media` table; library radio selection also works
+- [x] Draft preview: anonymous → 302; authenticated → 200 with "Pratinjau admin" banner + `noindex, nofollow` meta
+- [x] Publish → `/blog/{slug}` 200 and appears in listing; unpublish → 404 again
+- [x] Delete article → removes article + its `article_tags` rows, keeps `media` rows/files (shared cover not deleted); public detail → 404
+- [x] Blog settings save: title/subtitle/limit/columns/visibility persist; homepage honors 2 vs 3 columns, limit, and hides `#blog` section + its nav link when disabled
+- [x] Menu type "Daftar Artikel (Blog)" adds a `/blog` link to public nav on homepage and standalone pages; temp item removed after test (menu back to 8 items)
+- [x] Category/tag deletion blocked while referenced ("masih digunakan oleh artikel"); counts unchanged after attempt
+- [x] Pagination: temporarily inserted 5 extra published articles → `/blog` shows page 2 link, `?page=2` renders overflow; temp rows removed after test
+- [x] Regression: `/`, `/blog`, `/pages/{published}`, all admin list/create screens → 200; homepage renders all sections (home/about/services/portfolio/testimonials/blog/contact); Pages save still sanitizes after trait refactor; `js-scroll-trigger` 300 ms nav links intact
+- [x] Zero console errors on article form (TinyMCE initializes, `language: 'id'`, 1 iframe), `/blog`, `/blog/{slug}`, `/`, `/pages/{slug}`, `/admin/settings/blog`, `/admin/articles`
+- [x] Fixed during verification: `Articles::delete()` referenced undefined `$this->db` (500) → switched to `\Config\Database::connect()`; deleted test artifacts from media library afterward
+
+### Earlier Milestones
 - [x] Homepage loads at `http://127.0.0.1:8081/` and public layout remains unchanged
 - [x] Desktop layout matches supplied template
 - [x] Navigation collapse toggles correctly via Bootstrap 5
@@ -283,6 +457,10 @@ Pages and Navigation Menu management implemented. Admin interface uses AdminLTE 
 13. **Pages:** Login and open `/admin/pages` (nav "Halaman"). (a) Click "Tambah Halaman": enter a title, leave slug blank, set status to "Terbit", type some rich-text content in TinyMCE, and save. Confirm the page appears in the list with auto-generated slug. (b) Edit the page: change the title only; confirm the slug is preserved. (c) Try to create a second page with the same slug; confirm rejection. (d) Set a page to "Draf" status; confirm `/pages/{slug}` returns 404. Set back to "Terbit"; confirm the page loads at `/pages/{slug}`. (e) Open the public page and confirm: page title, content, navigation with homepage-qualified `/#section` links, footer links, navbar always shrunk. (f) Delete a page and confirm it disappears from the list and returns 404 publicly.
 14. **Menu:** Login and open `/admin/menu` (nav "Menu"). (a) Confirm 7 seeded items matching existing navigation. (b) Add a new "Bagian Homepage" menu item; confirm it appears on the public homepage. (c) Add a new "Halaman" menu item pointing to a published page; confirm it appears in nav. (d) Add a "URL Eksternal" menu item with an `https://` URL; confirm it opens in a new tab. (e) Use up/down arrows to reorder; confirm the public nav order changes. (f) Toggle visibility on a menu item; confirm it disappears/reappears in public nav. (g) Edit a menu item label; confirm the label changes without affecting the target. (h) Delete a menu item; confirm it disappears from nav but the target page/section is unaffected. (i) Hide a homepage section (e.g., disable Services via `/admin/settings/services`); confirm the corresponding menu item is auto-omitted from public nav even though it's still visible in admin. (j) Set a page linked by a menu item to "Draf"; confirm the menu item is auto-omitted from public nav.
 15. **Homepage regression:** After all changes, confirm the public homepage at `/` renders all sections, smooth scrolling works (300ms), navbar shrinks on scroll, mobile menu toggles, scroll-to-top works, and the footer shows dynamic links.
+16. **Articles:** Run `php spark demo:fitness` (repeat-safe). Login and open `/admin/articles` (nav "Artikel"). (a) Confirm the 3 demo articles appear (2 "Terbit", 1 "Draf") with the Fitness category. (b) Click "Tambah Artikel": enter a title, leave the slug blank (auto-generated), pick the Fitness category, tick tags, type rich-text in the Indonesian TinyMCE editor, choose a cover from the media library or upload one, keep status "Draf", and save. (c) Edit it: change only the title and confirm the slug is preserved; try setting a duplicate slug and confirm rejection. (d) Click the eye (Pratinjau) button: confirm the draft renders with the "Pratinjau admin" banner; open the same preview in a logged-out browser and confirm it redirects to login. (e) Set status to "Terbit" and save; confirm the article appears at `/blog` and in the homepage Blog section, and `/blog/{slug}` loads. (f) Switch its detail layout between "Area baca + sidebar" and "lebar penuh" and confirm the public detail page changes. (g) Set back to "Draf"; confirm `/blog/{slug}` returns 404 and it disappears from the listing. (h) Delete it; confirm the cover image is still present in the media library (used by other forms).
+17. **Blog settings:** Open `/admin/settings/blog` (Pengaturan > Blog). Change title/subtitle, switch 3→2 columns, change the homepage limit, and toggle visibility off; confirm the homepage `#blog` section reflects each change and its nav link disappears when hidden. Read the info alert explaining the four separate layout settings. Restore afterwards.
+18. **Menu → article listing:** Open `/admin/menu`, add an item of type "Daftar Artikel (Blog)" with an Indonesian label; confirm it links to `/blog` in the public nav (homepage and standalone pages). Delete it afterwards if it was only a test.
+19. **Category/tag policy:** Try to delete the Fitness category or a tag used by a demo article (`/admin/categories`, `/admin/tags`); confirm it is blocked with "masih digunakan oleh artikel". Remove the reference from the articles first if deletion is truly wanted.
 
 ## Unverified
 - [ ] AdminLTE sidebar behavior on mobile viewport (sidebar collapse/overlay mode not tested via browser tools — desktop toggle confirmed working)
@@ -291,14 +469,14 @@ Pages and Navigation Menu management implemented. Admin interface uses AdminLTE 
 - [ ] Physical touch interactions on real mobile devices
 - [ ] Mobile-menu closing after a nav click (the collapse-close handler is unchanged and runs with no console errors on desktop, but the reduced/mobile viewport could not be exercised)
 - [ ] `prefers-reduced-motion: reduce` runtime path (verified by code inspection only; the emulated environment reports `no-preference`)
-- [ ] Category/tag deletion "still in use" blocking (code-inspected only; guarded by `tableExists('articles')` / `tableExists('article_tags')`, which do not exist yet, so the branch never triggers until the Articles milestone creates those tables). Note: this intentionally follows the task's "block deletion when in use" rule; the PRD's "deleting a tag removes its articles associations" is deferred/superseded until articles exist.
-- [ ] TinyMCE rich-text editor visual rendering and toolbar interaction (CDN loads in browser but automated tool cannot interact with TinyMCE iframe — confirmed TinyMCE init code is correct, and content is submitted and sanitized server-side)
+- [ ] TinyMCE rich-text editor visual rendering and toolbar interaction (local build initializes with zero console errors and the `id` language pack loads, but automated tooling cannot interact with the TinyMCE iframe — content submission + server-side sanitization are verified)
 - [ ] Public page mobile viewport layout (page-content-wrapper responsive CSS verified by inspection but not viewport-tested)
+- [ ] `/blog` listing + article detail mobile viewport rendering (responsive Bootstrap grid by inspection; not viewport-tested)
 
-## Next Milestone (Paused — Article Management)
-- [ ] Next milestone: Article management with draft/publish, cover image, category, and tags.
-- [ ] Implementation will reuse the existing `categories` and `tags` tables, the shared `media` library, the `pages` rich-text editor pattern, and the existing authenticated admin layout.
-- [ ] Existing limitations (mobile viewport/touch, reduced-motion, in-use deletion not yet exercisable) remain documented above.
+## Next Milestone (Suggested)
+- [ ] Media library management screen (standalone `/admin/media` list with delete — media rows are currently created by uploads and the picker, but there is no management UI)
+- [ ] Public article search / category-tag archive pages (listing is currently chronological only)
+- [ ] Backup/restore documentation
 
 ## Pending (future tasks)
 - [x] Database setup and migrations
@@ -312,6 +490,6 @@ Pages and Navigation Menu management implemented. Admin interface uses AdminLTE 
 - [x] Pages CRUD with rich-text editor (pending owner review/commit)
 - [x] Navigation menu management (pending owner review/commit)
 - [ ] Media library
-- [ ] Article editor with draft/preview/publish
-- [ ] Public article listing/detail/search pages
+- [x] Article editor with draft/preview/publish (pending owner review/commit)
+- [x] Public article listing/detail pages (pending owner review/commit) — search not included
 - [ ] Backup/restore documentation
