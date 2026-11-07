@@ -76,6 +76,46 @@ class VisitorTracker
     }
 
     /**
+     * Record a visit unconditionally (admin sessions and bots included).
+     *
+     * Used only for security-sensitive routes (login page, entry gate)
+     * where every access attempt should be visible in analytics.
+     */
+    public static function recordAlways(string $pageType, int $pageId, string $pagePath): void
+    {
+        /** @var IncomingRequest $request */
+        $request = service('request');
+
+        $ua = mb_substr((string) $request->getUserAgent(), 0, 500);
+
+        if ($ua === '') {
+            $parsed = ['browser' => 'Lainnya', 'os' => 'Lainnya', 'device_type' => 'other', 'is_bot' => true];
+        } else {
+            $parsed = self::parseUserAgent($ua);
+        }
+
+        $isBot = $parsed['is_bot'] ? 1 : 0;
+        $ip    = $request->getIPAddress();
+        $geo   = GeoIpLookup::lookup($ip);
+
+        $model = new PageVisitModel();
+        $model->insert([
+            'page_type'  => $pageType,
+            'page_id'    => $pageId,
+            'page_path'  => mb_substr($pagePath, 0, 500),
+            'ip_address' => $ip,
+            'user_agent' => $ua,
+            'browser'    => $parsed['browser'],
+            'os'         => $parsed['os'],
+            'device_type'=> $parsed['device_type'],
+            'is_bot'     => $isBot,
+            'country'    => mb_substr($geo['country'], 0, 100) ?: null,
+            'region'     => mb_substr($geo['region'], 0, 100) ?: null,
+            'city'       => mb_substr($geo['city'], 0, 100) ?: null,
+        ]);
+    }
+
+    /**
      * Parse a user-agent string into browser, OS, device type, and bot flag.
      *
      * Uses simple, well-known patterns — no third-party library needed.

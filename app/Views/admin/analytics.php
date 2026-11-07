@@ -85,8 +85,8 @@
                             <td><?= $i + 1 ?></td>
                             <td><code><?= esc($row['page_path']) ?></code></td>
                             <td><?php
-                                $typeLabels = ['home' => 'Home', 'section' => 'Section', 'blog' => 'Blog', 'article' => 'Article', 'page' => 'Page'];
-                                $typeColors = ['home' => 'info', 'section' => 'dark', 'blog' => 'success', 'article' => 'primary', 'page' => 'secondary'];
+                                $typeLabels = ['home' => 'Home', 'section' => 'Section', 'blog' => 'Blog', 'article' => 'Article', 'page' => 'Page', 'admin_login' => 'Login'];
+                                $typeColors = ['home' => 'info', 'section' => 'dark', 'blog' => 'success', 'article' => 'primary', 'page' => 'secondary', 'admin_login' => 'warning'];
                                 $label = $typeLabels[$row['page_type']] ?? $row['page_type'];
                                 $color = $typeColors[$row['page_type']] ?? 'secondary';
                             ?><span class="badge text-bg-<?= $color ?>"><?= esc($label) ?></span></td>
@@ -192,8 +192,8 @@
                         <td class="text-nowrap"><?= esc($row['created_at']) ?></td>
                         <td><code><?= esc($row['page_path']) ?></code></td>
                         <td><?php
-                            $rtLabels = ['home' => 'Home', 'section' => 'Section', 'blog' => 'Blog', 'article' => 'Article', 'page' => 'Page'];
-                            $rtColors = ['home' => 'info', 'section' => 'dark', 'blog' => 'success', 'article' => 'primary', 'page' => 'secondary'];
+                            $rtLabels = ['home' => 'Home', 'section' => 'Section', 'blog' => 'Blog', 'article' => 'Article', 'page' => 'Page', 'admin_login' => 'Login'];
+                            $rtColors = ['home' => 'info', 'section' => 'dark', 'blog' => 'success', 'article' => 'primary', 'page' => 'secondary', 'admin_login' => 'warning'];
                             $rtLabel = $rtLabels[$row['page_type']] ?? $row['page_type'];
                             $rtColor = $rtColors[$row['page_type']] ?? 'secondary';
                         ?><span class="badge text-bg-<?= $rtColor ?>"><?= esc($rtLabel) ?></span></td>

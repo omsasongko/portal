@@ -14,6 +14,7 @@ $routes->get('blog', 'Blog::index');
 $routes->get('blog/results', 'Blog::results');
 $routes->get('blog/(:segment)', 'Blog::show/$1');
 $routes->post('contact/submit', 'Contact::submit');
+$routes->get('lanjut/asup', 'EntryGate::pass');
 
 // Admin auth routes
 $routes->get('admin/login', 'Admin\Auth::loginForm');

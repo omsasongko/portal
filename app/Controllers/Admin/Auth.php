@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\AdminModel;
 use App\Models\AdminLoginAttemptModel;
+use App\Libraries\VisitorTracker;
 
 class Auth extends BaseController
 {
@@ -19,8 +20,22 @@ class Auth extends BaseController
 
     public function loginForm()
     {
-        if (session()->get('admin_id')) {
+        $session = session();
+
+        if ($session->get('admin_id')) {
             return redirect()->to('/admin');
+        }
+
+        VisitorTracker::recordAlways('admin_login', 0, '/admin/login');
+
+        if (! $session->get('login_gate_passed')) {
+            $settingModel = new \App\Models\SettingModel();
+            $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
+
+            return view('admin/login_gate', [
+                'title'    => 'Masuk Admin',
+                'identity' => $identity,
+            ]);
         }
 
         $settingModel = new \App\Models\SettingModel();
@@ -72,6 +87,7 @@ class Auth extends BaseController
         $this->attemptModel->clear($username, $ip);
         $this->adminModel->updateLastLogin($admin['id']);
 
+        $session->remove('login_gate_passed');
         $session->regenerate(true);
         $session->set([
             'admin_id'    => $admin['id'],
