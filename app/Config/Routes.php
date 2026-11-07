@@ -7,6 +7,7 @@ use CodeIgniter\Router\RouteCollection;
  */
 
 $routes->get('/', 'Home::index');
+$routes->post('track-section', 'TrackSection::record');
 $routes->get('pages/(:segment)', 'Page::show/$1');
 $routes->get('blog', 'Blog::index');
 // Must stay BEFORE blog/(:segment) so "results" is not read as an article slug.

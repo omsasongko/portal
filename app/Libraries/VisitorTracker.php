@@ -23,14 +23,13 @@ class VisitorTracker
     /**
      * Record a public page visit.
      *
-     * Call this from Blog::show() and Page::show() AFTER confirming the
-     * content is published and accessible (i.e. no 404). The method is
-     * a no-op when the visitor is a logged-in admin, an obvious bot, or
-     * the request looks like a health-check probe.
+     * Called from public controllers AFTER confirming the content is
+     * accessible (not a 404).  The method is a no-op when the visitor
+     * is a logged-in admin or has an empty user-agent.
      *
-     * @param string $pageType 'article' or 'page'
-     * @param int    $pageId   ID of the article or page row
-     * @param string $pagePath Canonical public path, e.g. /blog/slug or /pages/slug
+     * @param string $pageType 'home', 'section', 'blog', 'article', or 'page'
+     * @param int    $pageId   ID of the article/page row, or 0 for pages without a DB record
+     * @param string $pagePath Canonical public path, e.g. /, /#about, /blog, /blog/slug, /pages/slug
      */
     public static function record(string $pageType, int $pageId, string $pagePath): void
     {

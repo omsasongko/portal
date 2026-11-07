@@ -9,6 +9,7 @@ use App\Models\PortfolioCategoryModel;
 use App\Models\PortfolioItemModel;
 use App\Models\PortfolioItemCategoryModel;
 use App\Models\ArticleModel;
+use App\Libraries\VisitorTracker;
 
 class Home extends BaseController
 {
@@ -82,6 +83,8 @@ class Home extends BaseController
         // Build dynamic navigation menu (shared helper; section links are
         // plain "#anchor" on the homepage for the smooth-scroll behavior).
         $menuItems = build_public_menu(false);
+
+        VisitorTracker::record('home', 0, '/');
 
         return view('portal/home', [
             'identity'            => $identity,

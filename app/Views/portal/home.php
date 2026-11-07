@@ -434,5 +434,44 @@
     <script src="<?= base_url('assets/portal/js/jquery.vide.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/retina.js') ?>"></script>
 
+    <script>
+    (function () {
+        "use strict";
+        var TRACK_URL = <?= json_encode(base_url('track-section')) ?>;
+        var SECTIONS = ["home","about","services","portfolio","testimonials","blog","contact"];
+        var lastTracked = null;
+
+        function trackSection(id) {
+            if (!id || id === lastTracked) return;
+            if (SECTIONS.indexOf(id) === -1) return;
+            lastTracked = id;
+            var data = JSON.stringify({ section: id });
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(TRACK_URL, new Blob([data], { type: "application/json" }));
+            } else {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", TRACK_URL, true);
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+                xhr.send(data);
+            }
+        }
+
+        function sectionFromHash(hash) {
+            return (hash || "").replace(/^#/, "").toLowerCase();
+        }
+
+        window.addEventListener("hashchange", function () {
+            trackSection(sectionFromHash(location.hash));
+        });
+
+        // Track the initial section if the URL has a hash on load.
+        var initial = sectionFromHash(location.hash);
+        if (initial && initial !== "page-top") {
+            trackSection(initial);
+        }
+    })();
+    </script>
+
 </body>
 </html>

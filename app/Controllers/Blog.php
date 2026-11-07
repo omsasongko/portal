@@ -66,6 +66,8 @@ class Blog extends BaseController
             'menuItems'  => build_public_menu(true),
         ]);
 
+        VisitorTracker::record('blog', 0, '/blog');
+
         return view('portal/blog_list', $data);
     }
 

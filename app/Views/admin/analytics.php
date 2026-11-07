@@ -84,7 +84,12 @@
                         <tr>
                             <td><?= $i + 1 ?></td>
                             <td><code><?= esc($row['page_path']) ?></code></td>
-                            <td><span class="badge text-bg-<?= $row['page_type'] === 'article' ? 'primary' : 'secondary' ?>"><?= esc($row['page_type']) ?></span></td>
+                            <td><?php
+                                $typeLabels = ['home' => 'Home', 'section' => 'Section', 'blog' => 'Blog', 'article' => 'Article', 'page' => 'Page'];
+                                $typeColors = ['home' => 'info', 'section' => 'dark', 'blog' => 'success', 'article' => 'primary', 'page' => 'secondary'];
+                                $label = $typeLabels[$row['page_type']] ?? $row['page_type'];
+                                $color = $typeColors[$row['page_type']] ?? 'secondary';
+                            ?><span class="badge text-bg-<?= $color ?>"><?= esc($label) ?></span></td>
                             <td class="text-end"><?= number_format($row['visits']) ?></td>
                         </tr>
                         <?php endforeach; ?>
@@ -177,15 +182,21 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-striped table-sm mb-0">
-                <thead><tr><th>Waktu (WIB)</th><th>Halaman</th><th>IP</th><th>Browser</th><th>OS</th><th>Perangkat</th><th>Bot</th></tr></thead>
+                <thead><tr><th>Waktu (WIB)</th><th>Halaman</th><th>Tipe</th><th>IP</th><th>Browser</th><th>OS</th><th>Perangkat</th><th>Bot</th></tr></thead>
                 <tbody>
                 <?php if (empty($recentVisits)): ?>
-                    <tr><td colspan="7" class="text-center text-muted py-3">Belum ada data</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-3">Belum ada data</td></tr>
                 <?php else: ?>
                     <?php foreach ($recentVisits as $row): ?>
                     <tr>
                         <td class="text-nowrap"><?= esc($row['created_at']) ?></td>
                         <td><code><?= esc($row['page_path']) ?></code></td>
+                        <td><?php
+                            $rtLabels = ['home' => 'Home', 'section' => 'Section', 'blog' => 'Blog', 'article' => 'Article', 'page' => 'Page'];
+                            $rtColors = ['home' => 'info', 'section' => 'dark', 'blog' => 'success', 'article' => 'primary', 'page' => 'secondary'];
+                            $rtLabel = $rtLabels[$row['page_type']] ?? $row['page_type'];
+                            $rtColor = $rtColors[$row['page_type']] ?? 'secondary';
+                        ?><span class="badge text-bg-<?= $rtColor ?>"><?= esc($rtLabel) ?></span></td>
                         <td><code><?= esc($row['ip_address']) ?></code></td>
                         <td><?= esc($row['browser']) ?></td>
                         <td><?= esc($row['os']) ?></td>
