@@ -1,2 +1,456 @@
 
 /** ADD YOUR AWESOME CODES HERE **/
+/* ---------------------------------------------------------------------------
+   Blog cards — shared by the homepage Blog section (#blog) and the full
+   Blog listing (/blog). Desktop column count (2 or 3) comes from the
+   "Tata Letak Kartu" setting in Pengaturan Blog; small screens always
+   collapse to one column. Cards are top-aligned with equal heights inside
+   a row, compact covers share one aspect ratio, and articles without a
+   cover render as readable text-only cards.
+--------------------------------------------------------------------------- */
+.portal-blog-card {
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    height: 100%;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.portal-blog-card .post-thumb {
+    display: block;
+    aspect-ratio: 16 / 10; /* compact shared aspect ratio for every cover */
+    overflow: hidden;
+    background: #f3f3f3;
+    position: relative;
+}
+.portal-blog-card .post-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.portal-blog-card .post-thumb .date {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+.portal-blog-card .post-info {
+    padding: 1.1rem 1.25rem 1.25rem;
+}
+.portal-blog-card .post-info h4 {
+    margin-bottom: 0.5rem;
+    line-height: 1.35;
+}
+.portal-blog-card .post-info ul {
+    margin-bottom: 0.6rem;
+    padding-left: 0;
+    list-style: none;
+    color: #8a8a8a;
+    font-size: 0.86rem;
+}
+.portal-blog-card .post-info ul li {
+    display: inline-block;
+    margin-right: 0.9rem;
+}
+.portal-blog-card .post-info p {
+    margin-bottom: 0;
+    color: #6b6b6b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+/* Readable text-only card when the article has no cover image. */
+.portal-blog-card.no-cover .post-info {
+    padding-top: 1.4rem;
+}
+.portal-blog-card.no-cover::before {
+    content: "";
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, #e8e8e8, #f6f6f6);
+}
+/* Blog listing grid: rows align cards at the top with consistent spacing. */
+.blog-list-wrapper .row {
+    align-items: stretch;
+}
+/* Single "Lihat semua artikel" link below the homepage Blog grid. */
+#blog .blog-see-all {
+    margin-top: 0.75rem;
+}
+#blog .blog-see-all a {
+    display: inline-block;
+    padding: 0.5rem 1.4rem;
+    border: 1px solid #ddd;
+    border-radius: 2rem;
+    color: inherit;
+    text-decoration: none;
+}
+/* --------------------------------------------------------------------------
+   Blog listing (/blog): 75/25 layout, pagination, functional sidebar.
+   Theme palette: dark accent #333333, light gray #f2f3f5, muted #999.
+-------------------------------------------------------------------------- */
+
+/* Card readability fixes (theme defaults fight the card layout) */
+.portal-blog-card .post-info {
+    margin-top: 0;
+}
+.portal-blog-card .post-info ul {
+    text-align: left;
+}
+.portal-blog-card .post-info h4 a {
+    color: inherit;
+}
+.portal-blog-card .post-info h4 {
+    overflow-wrap: anywhere; /* long titles never break the card */
+}
+.portal-blog-card .post-info p {
+    overflow-wrap: anywhere;
+}
+
+/* Empty state */
+.blog-empty {
+    background: #fff;
+    border: 1px dashed #d8d8d8;
+    border-radius: 0.5rem;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #767676;
+    margin-bottom: 1.5rem;
+}
+.blog-empty p {
+    margin-bottom: 0.75rem;
+    font-size: 1.05rem;
+}
+
+/* Active filter chips + Reset filter */
+.blog-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1.5rem;
+}
+.blog-active-filters .af-label {
+    font-weight: 600;
+    color: #333333;
+    margin-right: 0.25rem;
+}
+.blog-active-filters .af-chip {
+    background: #f2f3f5;
+    border-radius: 2rem;
+    padding: 0.25rem 0.85rem;
+    font-size: 0.85rem;
+    color: #333333;
+}
+.blog-active-filters .af-chip a {
+    color: #999;
+    text-decoration: none;
+    margin-left: 0.4rem;
+    font-weight: 700;
+}
+.blog-active-filters .af-chip a:hover {
+    color: #333333;
+}
+.blog-active-filters .af-reset,
+.blog-empty .af-reset {
+    color: #ffffff;
+    background: #333333;
+    border-radius: 2rem;
+    padding: 0.25rem 0.9rem;
+    font-size: 0.85rem;
+    text-decoration: none;
+    margin-left: 0.5rem;
+}
+.blog-active-filters .af-reset:hover,
+.blog-empty .af-reset:hover {
+    background: #1f1f1f;
+    color: #ffffff;
+}
+
+/* Sidebar — subtle glossy glass panels (Pencarian / Kategori / Tag) */
+.blog-sidebar {
+    display: block;
+}
+.blog-sidebar .bs-widget {
+    background: rgba(255, 255, 255, 0.62);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    backdrop-filter: blur(10px) saturate(1.15);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow:
+        0 8px 24px rgba(31, 31, 31, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.70);
+}
+/* Opaque fallback when backdrop-filter is unsupported. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .blog-sidebar .bs-widget {
+        background: #ffffff;
+        border-color: #ececec;
+    }
+}
+/* Dark mode: darker glass, light borders, unchanged contrast. */
+@media (prefers-color-scheme: dark) {
+    .blog-sidebar .bs-widget {
+        background: rgba(31, 31, 31, 0.60);
+        border-color: rgba(255, 255, 255, 0.14);
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    }
+    .blog-sidebar .bs-widget h5 {
+        color: #f2f3f5;
+        border-bottom-color: rgba(242, 243, 245, 0.55);
+    }
+    .blog-sidebar .form-check-label {
+        color: #e6e6e6;
+    }
+    .blog-sidebar .bs-count {
+        background: rgba(255, 255, 255, 0.14);
+        color: #d9d9d9;
+    }
+    .blog-sidebar .form-check-input {
+        background-color: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.45);
+    }
+    .blog-sidebar .form-check-input:checked {
+        background-color: #e6e6e6;
+        border-color: #e6e6e6;
+    }
+    .blog-search .form-control {
+        background: rgba(255, 255, 255, 0.10);
+        border-color: rgba(255, 255, 255, 0.28);
+        color: #f2f3f5;
+    }
+    .blog-search .form-control::placeholder {
+        color: rgba(242, 243, 245, 0.55);
+    }
+}
+.blog-sidebar h5 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #333333;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #333333;
+}
+
+/* Search input + Cari button aligned inside the panel */
+.blog-search {
+    flex-wrap: nowrap;
+}
+.blog-search .form-control {
+    min-width: 0;
+    border-color: #e3e3e3;
+}
+.blog-search .form-control:focus {
+    border-color: #333333;
+    box-shadow: none;
+}
+.blog-search-btn {
+    background: #333333;
+    border: 1px solid #333333;
+    color: #ffffff;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    white-space: nowrap;
+}
+.blog-search-btn:hover,
+.blog-search-btn:focus {
+    background: #1f1f1f;
+    border-color: #1f1f1f;
+    color: #ffffff;
+}
+
+/* Vertical checkbox lists with right-aligned count badges */
+.bs-check-list {
+    max-height: 220px;          /* bounded, scrollable when long */
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+}
+.bs-check-list::-webkit-scrollbar {
+    width: 6px;
+}
+.bs-check-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 3px;
+}
+.bs-check-list .form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.3rem 0.2rem;
+    margin-bottom: 0.15rem;
+    border-radius: 0.4rem;
+}
+.bs-check-list .form-check:hover {
+    background: rgba(51, 51, 51, 0.05);
+}
+.bs-check-list .form-check .form-check-input {
+    margin-top: 0.25rem;
+    flex: 0 0 auto;
+}
+.bs-check-list .form-check .form-check-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    cursor: pointer;
+    color: #333333;
+    overflow-wrap: anywhere;    /* long labels wrap cleanly */
+    line-height: 1.35;
+    margin-bottom: 0;
+}
+.bs-check-list .form-check.checked .form-check-label {
+    font-weight: 600;
+}
+.bs-check-list .bs-count {
+    flex: 0 0 auto;
+    margin-left: auto;          /* badge aligned to the right */
+    background: #f2f3f5;
+    border-radius: 1rem;
+    padding: 0.05rem 0.55rem;
+    font-size: 0.78rem;
+    color: #555555;
+}
+/* Clearly visible checkbox state and keyboard focus */
+.bs-check-list .form-check-input:checked {
+    background-color: #333333;
+    border-color: #333333;
+}
+.bs-check-list .form-check-input:focus-visible {
+    outline: 2px solid #333333;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+.blog-sidebar .bs-reset {
+    display: block;
+    text-align: center;
+    margin-left: 0;
+}
+
+/* Loading state while filters are being applied */
+.blog-main-col {
+    position: relative;
+}
+.blog-loading {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    border-radius: 0.5rem;
+}
+.blog-loading.show {
+    display: flex;
+}
+.blog-loading-box {
+    background: #333333;
+    color: #ffffff;
+    border-radius: 2rem;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+}
+@media (prefers-color-scheme: dark) {
+    .blog-loading {
+        background: rgba(20, 20, 20, 0.55);
+    }
+}
+
+/* Recoverable error message for failed/timed-out async updates */
+.blog-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: #fdf3f4;
+    border: 1px solid #f5c2c7;
+    color: #842029;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.92rem;
+}
+.blog-error[hidden] {
+    display: none;
+}
+.blog-error-retry {
+    background: #842029;
+    border: 1px solid #842029;
+    color: #ffffff;
+    border-radius: 0.4rem;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.blog-error-retry:hover,
+.blog-error-retry:focus {
+    background: #6a1a21;
+    border-color: #6a1a21;
+}
+@media (prefers-color-scheme: dark) {
+    .blog-error {
+        background: rgba(67, 24, 28, 0.55);
+        border-color: rgba(248, 215, 218, 0.35);
+        color: #f8d7da;
+    }
+    .blog-error-retry {
+        background: #f8d7da;
+        border-color: #f8d7da;
+        color: #431819;
+    }
+    .blog-error-retry:hover,
+    .blog-error-retry:focus {
+        background: #ffffff;
+        border-color: #ffffff;
+        color: #431819;
+    }
+}
+
+/* Mobile comfort: no horizontal overflow, roomier tap targets */
+@media (max-width: 767.98px) {
+    .blog-sidebar .bs-widget {
+        padding: 1rem;
+    }
+    .bs-check-list .form-check {
+        padding: 0.45rem 0.35rem;
+    }
+}
+
+/* Pagination — Previous, 1, …, nearby pages, last, Next (theme colors) */
+.blog-list-wrapper .blog-pagination {
+    margin-top: 1.5rem;
+}
+.blog-pagination .pagination {
+    gap: 0.3rem;
+}
+.blog-pagination .page-link {
+    color: #333333;
+    background: #ffffff;
+    border: 1px solid #e3e3e3;
+    border-radius: 0.35rem !important;
+    margin: 0;
+    min-width: 2.4rem;
+    text-align: center;
+}
+.blog-pagination .page-link:hover {
+    background: #f2f3f5;
+    color: #000000;
+}
+.blog-pagination .page-item.active .page-link {
+    background: #333333;
+    border-color: #333333;
+    color: #ffffff;
+    font-weight: 600;
+}
+.blog-pagination .page-item.disabled .page-link {
+    background: #ffffff;
+    border-color: #eee;
+    color: #bcbcbc;
+}

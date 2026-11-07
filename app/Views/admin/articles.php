@@ -30,7 +30,7 @@
                         <tr>
                             <td><?= esc($a['title']) ?></td>
                             <td><code><?= esc($a['slug']) ?></code></td>
-                            <td><?= esc($catNames[$a['category_id']] ?? '-') ?></td>
+                            <td><?php $artCatNames = array_filter(array_map(static fn ($cid) => $catNames[$cid] ?? null, $articleCategoryIds[(int) $a['id']] ?? [])); echo $artCatNames ? esc(implode(', ', $artCatNames)) : '-'; ?></td>
                             <td>
                                 <?php if ($a['status'] === 'published'): ?>
                                     <span class="badge text-bg-success">Terbit</span>

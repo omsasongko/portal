@@ -21,7 +21,7 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/bootstrap.min.css') ?>">
     <!-- Site CSS -->
-    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>?v=2026110706">
     <!-- Responsive CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/responsive.css') ?>">
     <!-- Custom CSS -->
@@ -67,7 +67,7 @@
           <ul class="navbar-nav text-uppercase ms-auto">
             <?php foreach ($menuItems as $mi): ?>
             <li class="nav-item">
-              <a class="nav-link" href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
+              <a class="nav-link<?= !empty($mi['active']) ? ' active' : '' ?>" href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
             </li>
             <?php endforeach; ?>
           </ul>
@@ -118,7 +118,7 @@
         $('.nav-link').click(function () {
             var navbarCollapse = document.querySelector('.navbar-collapse');
             if (navbarCollapse) {
-                bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+                bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false }).hide();
             }
         });
 

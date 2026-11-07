@@ -115,6 +115,9 @@ class Categories extends BaseController
         $db = \Config\Database::connect();
         if ($db->tableExists('articles')) {
             $used = (int) $db->table('articles')->where('category_id', (int) $id)->countAllResults();
+            $used += (int) ( $db->tableExists('article_categories')
+                ? $db->table('article_categories')->where('category_id', (int) $id)->countAllResults()
+                : 0 );
             if ($used > 0) {
                 return redirect()->back()->with('error', 'Kategori tidak dapat dihapus karena masih digunakan oleh artikel.');
             }

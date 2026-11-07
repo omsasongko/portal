@@ -307,6 +307,11 @@ a img.aligncenter {
 	
 }
 
+.navbar-dark .navbar-brand img {
+    max-height: 42px;
+    width: auto;
+}
+
 .navbar-dark .navbar-nav .nav-link{
 	color: #ffffff;
 	letter-spacing: 1px;

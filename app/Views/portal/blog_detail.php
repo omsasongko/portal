@@ -22,7 +22,7 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/bootstrap.min.css') ?>">
     <!-- Site CSS -->
-    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>?v=2026110706">
     <!-- Responsive CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/responsive.css') ?>">
     <!-- Custom CSS -->
@@ -134,7 +134,7 @@
           <ul class="navbar-nav text-uppercase ms-auto">
             <?php foreach ($menuItems as $mi): ?>
             <li class="nav-item">
-              <a class="nav-link" href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
+              <a class="nav-link<?= !empty($mi['active']) ? ' active' : '' ?>" href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
             </li>
             <?php endforeach; ?>
           </ul>
@@ -152,9 +152,9 @@
                         <?php if (! empty($article['published_at'])): ?>
                             <span><?= esc(date('d M Y', strtotime($article['published_at']))) ?></span>
                         <?php endif; ?>
-                        <?php if (! empty($category)): ?>
-                            &middot; <span class="badge text-bg-secondary"><?= esc($category['name']) ?></span>
-                        <?php endif; ?>
+                        <?php foreach (($categories ?? []) as $c): ?>
+                            &middot; <span class="badge text-bg-secondary"><?= esc($c['name']) ?></span>
+                        <?php endforeach; ?>
                     </div>
 
                     <?php if (! empty($article['cover_image'])): ?>
@@ -241,7 +241,7 @@
         $('.nav-link').click(function () {
             var navbarCollapse = document.querySelector('.navbar-collapse');
             if (navbarCollapse) {
-                bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+                bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false }).hide();
             }
         });
 

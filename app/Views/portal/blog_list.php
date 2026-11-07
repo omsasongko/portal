@@ -21,7 +21,7 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/bootstrap.min.css') ?>">
     <!-- Site CSS -->
-    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>?v=2026110706">
     <!-- Responsive CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/responsive.css') ?>">
     <!-- Custom CSS -->
@@ -32,17 +32,6 @@
             padding-top: 100px;
             padding-bottom: 60px;
             min-height: 60vh;
-        }
-        .blog-list-wrapper .post-box .post-thumb img {
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-        }
-        .blog-list-wrapper .post-info h4 a {
-            color: inherit;
-        }
-        .blog-list-wrapper .pagination {
-            margin-top: 30px;
         }
     </style>
 </head>
@@ -62,7 +51,7 @@
           <ul class="navbar-nav text-uppercase ms-auto">
             <?php foreach ($menuItems as $mi): ?>
             <li class="nav-item">
-              <a class="nav-link" href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
+              <a class="nav-link<?= !empty($mi['active']) ? ' active' : '' ?>" href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
             </li>
             <?php endforeach; ?>
           </ul>
@@ -70,52 +59,85 @@
       </div>
     </nav>
 
-    <div class="blog-list-wrapper">
+    <div class="blog-list-wrapper" id="blog-root" data-results-url="<?= esc($resultsUrl) ?>" data-timeout="8000">
         <div class="container">
             <div class="section-title text-start">
                 <h3>Blog</h3>
-                <p>Semua artikel yang telah diterbitkan.</p>
+                <p id="blog-total-note">Semua artikel yang telah diterbitkan<?php if (($total ?? 0) > 0): ?> — <?= (int) $total ?> artikel<?php endif; ?>.</p>
             </div>
 
-            <?php if (empty($articles)): ?>
-                <p class="text-muted">Belum ada artikel yang diterbitkan.</p>
-            <?php else: ?>
-                <div class="row">
-                    <?php foreach ($articles as $a): ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="post-box">
-                            <?php if (! empty($a['cover_image'])): ?>
-                            <div class="post-thumb">
-                                <a href="<?= base_url('blog/' . $a['slug']) ?>">
-                                    <img src="<?= base_url($a['cover_image']) ?>" class="img-fluid" alt="<?= esc($a['cover_alt'] ?? $a['title']) ?>" />
-                                </a>
-                            </div>
-                            <?php endif; ?>
-                            <div class="post-info">
-                                <h4><a href="<?= base_url('blog/' . $a['slug']) ?>"><?= esc($a['title']) ?></a></h4>
-                                <ul>
-                                    <?php if (! empty($a['category_id']) && isset($catNames[$a['category_id']])): ?>
-                                    <li><?= esc($catNames[$a['category_id']]) ?></li>
-                                    <?php endif; ?>
-                                    <?php if (! empty($a['published_at'])): ?>
-                                    <li><?= esc(date('d M Y', strtotime($a['published_at']))) ?></li>
-                                    <?php endif; ?>
-                                </ul>
-                                <?php if (! empty($a['excerpt'])): ?>
-                                <p><?= esc($a['excerpt']) ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
+            <div class="row">
+                <?php // ~75% articles / 25% sidebar on wide screens; both stack on small screens. ?>
+                <div class="col-lg-9 blog-main-col">
+                    <div class="blog-loading" id="blog-loading" aria-hidden="true"><div class="blog-loading-box"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memuat hasil&hellip;</div></div>
+                    <div class="blog-error" id="blog-error" hidden role="alert"><span>Gagal memuat hasil. Periksa koneksi Anda.</span><button type="button" class="blog-error-retry" id="blog-error-retry">Coba lagi</button></div>
+                    <div id="blog-results-region"><?php
+                        // Chips + cards/empty + pagination share one partial with
+                        // the /blog/results JSON endpoint (identical markup).
+                        echo view('portal/blog_results', [
+                            'articles'           => $articles,
+                            'total'              => $total,
+                            'page'               => $page,
+                            'totalPages'         => $totalPages,
+                            'q'                  => $q,
+                            'categorySlugs'      => $categorySlugs,
+                            'tagSlugs'           => $tagSlugs,
+                            'hasFilters'         => $hasFilters,
+                            'selectedCategories' => $selectedCategories,
+                            'selectedTags'       => $selectedTags,
+                            'catNames'           => $catNames,
+                            'articleCategoryIds' => $articleCategoryIds,
+                            'cardLayout'         => $cardLayout,
+                            'blogUrl'            => $blogUrl,
+                        ]);
+                    ?></div>
                 </div>
 
-                <?php if ($pager->getPageCount() > 1): ?>
-                <nav aria-label="Navigasi halaman artikel">
-                    <?= $pager->only(['page'])->links() ?>
-                </nav>
-                <?php endif; ?>
-            <?php endif; ?>
+                <?php // ----- Functional sidebar: Pencarian, Kategori, Tag (multi-select) ----- ?>
+                <aside class="col-lg-3">
+                    <form id="blog-filter-form" method="get" action="<?= base_url('blog') ?>" class="blog-sidebar" aria-label="Filter artikel">
+                        <div class="bs-widget">
+                            <h5>Pencarian</h5>
+                            <div class="input-group blog-search">
+                                <input type="search" class="form-control" placeholder="Cari artikel&hellip;" aria-label="Cari artikel" name="q" value="<?= esc($q) ?>">
+                                <button class="btn blog-search-btn" type="submit">Cari</button>
+                            </div>
+                        </div>
+
+                        <div class="bs-widget">
+                            <h5>Kategori</h5>
+                            <?php // ANY selected category matches; empty selection = no restriction. ?>
+                            <div class="bs-check-list" role="group" aria-label="Filter kategori">
+                                <?php foreach ($sidebarCategories as $sc): ?>
+                                    <?php $checked = in_array($sc['slug'], $categorySlugs, true); ?>
+                                <label class="form-check<?= $checked ? ' checked' : '' ?>">
+                                    <input class="form-check-input bs-auto" type="checkbox" name="categories[]" value="<?= esc($sc['slug']) ?>" <?= $checked ? 'checked' : '' ?>>
+                                    <span class="form-check-label"><?= esc($sc['name']) ?></span>
+                                    <span class="bs-count"><?= (int) $sc['n'] ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div class="bs-widget">
+                            <h5>Tag</h5>
+                            <?php // ANY selected tag matches; combined with categories and search using AND. ?>
+                            <div class="bs-check-list" role="group" aria-label="Filter tag">
+                                <?php foreach ($sidebarTags as $st): ?>
+                                    <?php $checked = in_array($st['slug'], $tagSlugs, true); ?>
+                                <label class="form-check<?= $checked ? ' checked' : '' ?>">
+                                    <input class="form-check-input bs-auto" type="checkbox" name="tags[]" value="<?= esc($st['slug']) ?>" <?= $checked ? 'checked' : '' ?>>
+                                    <span class="form-check-label"><?= esc($st['name']) ?></span>
+                                    <span class="bs-count"><?= (int) $st['n'] ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <a class="af-reset bs-reset" data-blog-link href="<?= base_url('blog') ?>">Reset filter</a>
+                    </form>
+                </aside>
+            </div>
         </div>
     </div>
 
@@ -151,7 +173,7 @@
         $('.nav-link').click(function () {
             var navbarCollapse = document.querySelector('.navbar-collapse');
             if (navbarCollapse) {
-                bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+                bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false }).hide();
             }
         });
 
@@ -172,6 +194,208 @@
             });
         }
     })(jQuery);
+    </script>
+
+    <script>
+    (function () {
+        "use strict";
+
+        // Async filter updates: checkbox changes are debounced (250 ms) and
+        // fetched as a small JSON payload from /blog/results — NOT full-page
+        // navigations. Only the newest request may touch the DOM (sequence
+        // guard) and superseded requests are aborted (AbortController).
+        // Listeners are delegated and attached ONCE at startup, so replacing
+        // the results region content never duplicates handlers. The sidebar
+        // is never disabled; the overlay only covers the results column.
+        var root = document.getElementById('blog-root');
+        var form = document.getElementById('blog-filter-form');
+        var region = document.getElementById('blog-results-region');
+        var loading = document.getElementById('blog-loading');
+        var errorBox = document.getElementById('blog-error');
+        var retryBtn = document.getElementById('blog-error-retry');
+        var totalNote = document.getElementById('blog-total-note');
+        if (!root || !form || !region) return;
+
+        var RESULTS_URL = root.getAttribute('data-results-url');
+        var DEBOUNCE_MS = 250;
+
+        var seq = 0;           // identifies the newest request
+        var controller = null; // superseded requests are aborted
+        var timer = null;
+        var lastFetch = null;  // rebuilt on retry after a failure
+
+        function timeoutMs() {
+            // Read per request so data-timeout stays overridable at runtime
+            // (used by tests to exercise the timeout path quickly).
+            var v = parseInt(root.getAttribute('data-timeout') || '8000', 10);
+            return v > 0 ? v : 8000;
+        }
+
+        function uniqueSorted(list) {
+            var seen = {};
+            var out = [];
+            list.forEach(function (v) {
+                v = String(v || '').trim();
+                if (v !== '' && !seen[v]) { seen[v] = 1; out.push(v); }
+            });
+            return out.sort();
+        }
+
+        function selectionFromControls() {
+            var picked = function (name) {
+                return Array.prototype.slice.call(form.querySelectorAll('input[name="' + name + '"]:checked'))
+                    .map(function (cb) { return cb.value; });
+            };
+            var qInput = form.querySelector('input[name="q"]');
+            return {
+                categories: picked('categories[]'),
+                tags: picked('tags[]'),
+                q: qInput ? qInput.value : ''
+            };
+        }
+
+        function selectionFromParams(params) {
+            return {
+                categories: (params.get('categories') || '').split(','),
+                tags: (params.get('tags') || '').split(','),
+                q: params.get('q') || ''
+            };
+        }
+
+        // Mirrors the server-side canonical builder: dedup + sort, q only
+        // when non-empty, page only when > 1.
+        function canonicalQuery(sel, page) {
+            var parts = [];
+            var cats = uniqueSorted(sel.categories);
+            var tags = uniqueSorted(sel.tags);
+            var q = String(sel.q || '').trim();
+            if (cats.length) parts.push('categories=' + cats.map(encodeURIComponent).join(','));
+            if (tags.length) parts.push('tags=' + tags.map(encodeURIComponent).join(','));
+            if (q !== '') parts.push('q=' + encodeURIComponent(q));
+            page = parseInt(page || '1', 10);
+            if (page > 1) parts.push('page=' + page);
+            return parts.join('&');
+        }
+
+        function syncControls(sel) {
+            form.querySelectorAll('.bs-check-list input[type="checkbox"]').forEach(function (cb) {
+                var list = cb.name === 'categories[]' ? sel.categories : sel.tags;
+                cb.checked = list.indexOf(cb.value) !== -1;
+            });
+            var qInput = form.querySelector('input[name="q"]');
+            if (qInput) qInput.value = sel.q || '';
+        }
+
+        function showLoading() { if (loading) loading.classList.add('show'); }
+        function hideLoading() {
+            if (loading) loading.classList.remove('show');
+            form.classList.remove('is-loading');
+        }
+        function showError() { if (errorBox) errorBox.hidden = false; }
+        function hideError() { if (errorBox) errorBox.hidden = true; }
+
+        function updateTotalNote(total) {
+            if (!totalNote) return;
+            totalNote.textContent = total > 0
+                ? 'Semua artikel yang telah diterbitkan — ' + total + ' artikel.'
+                : 'Semua artikel yang telah diterbitkan.';
+        }
+
+        function apply(sel, page, push) {
+            seq += 1;
+            var my = seq;
+
+            var query = canonicalQuery(sel, page);
+            lastFetch = { sel: sel, page: page, push: push };
+
+            if (controller) controller.abort(); // superseded request cancelled
+            controller = new AbortController();
+            var signal = controller.signal;
+
+            var timedOut = false;
+            var kill = setTimeout(function () {
+                timedOut = true;
+                controller.abort();
+            }, timeoutMs());
+
+            syncControls(sel);
+            showLoading();
+            hideError();
+
+            fetch(RESULTS_URL + '?' + query, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: signal
+            })
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function (data) {
+                if (my !== seq) return; // a newer request owns the UI now
+                region.innerHTML = data.html;
+                if (push) window.history.pushState({ blogFilters: true }, '', data.canonicalUrl);
+                updateTotalNote(data.total);
+                hideError();
+            })
+            .catch(function (err) {
+                if (my !== seq) return;                    // superseded: never touch the UI
+                if (err && err.name === 'AbortError' && !timedOut) return; // cancelled, not a failure
+                showError();                                // network failure or timeout
+            })
+            .finally(function () {
+                clearTimeout(kill);
+                if (my === seq) hideLoading(); // an older request must NOT hide a newer one's loading state
+            });
+        }
+
+        function schedule() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(function () {
+                timer = null;
+                apply(selectionFromControls(), 1, true); // filter change → page 1
+            }, DEBOUNCE_MS);
+        }
+
+        if (retryBtn) {
+            retryBtn.addEventListener('click', function () {
+                if (lastFetch) {
+                    apply(lastFetch.sel, lastFetch.page, lastFetch.push);
+                }
+            });
+        }
+
+        // Delegated listeners — attached ONCE; replacing the region content
+        // never duplicates them.
+        form.addEventListener('change', function (e) {
+            if (e.target && e.target.matches && e.target.matches('.bs-check-list input[type="checkbox"]')) {
+                showLoading();
+                schedule();
+            }
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault(); // no full-page navigation for search either
+            apply(selectionFromControls(), 1, true);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            var link = e.target.closest ? e.target.closest('a[data-blog-link]') : null;
+            if (!link) return;
+            e.preventDefault();
+            var url = new URL(link.href);
+            var params = url.searchParams;
+            apply(selectionFromParams(params), parseInt(params.get('page') || '1', 10), true);
+        });
+
+        window.addEventListener('popstate', function () {
+            var params = new URL(window.location.href).searchParams;
+            apply(selectionFromParams(params), parseInt(params.get('page') || '1', 10), false);
+        });
+
+        // Restore a clean state when returning here via Back/Forward cache.
+        window.addEventListener('pageshow', hideLoading);
+    })();
     </script>
 
 </body>

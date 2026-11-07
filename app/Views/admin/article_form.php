@@ -72,14 +72,22 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="category_id" class="form-label">Kategori</label>
-                                <select class="form-select" id="category_id" name="category_id">
-                                    <option value="">— Tanpa kategori —</option>
-                                    <?php foreach ($categories as $c): ?>
-                                        <option value="<?= (int) $c['id'] ?>" <?= (int) old('category_id', $article['category_id'] ?? 0) === (int) $c['id'] ? 'selected' : '' ?>><?= esc($c['name']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div class="form-text">Kelola kategori lewat menu <a href="<?= base_url('admin/categories') ?>">Kategori</a>.</div>
+                                <label class="form-label">Kategori</label>
+                                <div class="border rounded p-2" style="max-height:180px; overflow-y:auto;">
+                                    <?php if (empty($categories)): ?>
+                                        <p class="text-muted small mb-0">Belum ada kategori. Kelola lewat menu <a href="<?= base_url('admin/categories') ?>">Kategori</a>.</p>
+                                    <?php else: ?>
+                                        <?php $selectedCategoryIds = array_map('intval', old('category_ids', $categoryIds ?? [])); ?>
+                                        <?php foreach ($categories as $c): ?>
+                                            <?php $checked = in_array((int) $c['id'], $selectedCategoryIds, true); ?>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="category_ids[]" value="<?= (int) $c['id'] ?>" id="category-<?= (int) $c['id'] ?>" <?= $checked ? 'checked' : '' ?>>
+                                                <label class="form-check-label" for="category-<?= (int) $c['id'] ?>"><?= esc($c['name']) ?></label>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="form-text">Pilih satu atau beberapa. Kelola kategori lewat menu <a href="<?= base_url('admin/categories') ?>">Kategori</a>.</div>
                             </div>
 
                             <div class="mb-3">

@@ -48,9 +48,10 @@ class Articles extends BaseController
         $catNames   = array_column($categories, 'name', 'id');
 
         return view('admin/articles', [
-            'title'      => 'Artikel',
-            'articles'   => $articles,
-            'catNames'   => $catNames,
+            'title'              => 'Artikel',
+            'articles'           => $articles,
+            'catNames'           => $catNames,
+            'articleCategoryIds' => $this->articleModel->categoryIdsGroupedByArticle(),
         ]);
     }
 
@@ -62,6 +63,7 @@ class Articles extends BaseController
             'tagIds'   => [],
             'media'    => $this->mediaModel->findAll(),
             'categories' => $this->categoryModel->orderBy('name', 'ASC')->findAll(),
+            'categoryIds' => [],
             'tags'     => $this->tagModel->orderBy('name', 'ASC')->findAll(),
         ]);
     }
@@ -79,8 +81,22 @@ class Articles extends BaseController
             'tagIds'     => $this->articleModel->tagIdsForArticle($id),
             'media'      => $this->mediaModel->findAll(),
             'categories' => $this->categoryModel->orderBy('name', 'ASC')->findAll(),
+            'categoryIds' => $this->articleModel->categoryIdsForArticle($id),
             'tags'       => $this->tagModel->orderBy('name', 'ASC')->findAll(),
         ]);
+    }
+
+    /**
+     * Deterministic error redirect for save(): back() follows the session's
+     * previous URL, which a preview tab (same session) can point at the
+     * POST-only preview-unsaved endpoint. Returning to the form explicitly
+     * keeps withInput() restorations reachable when anything fails.
+     */
+    private function saveErrorRedirect(int $id, ?array $existing)
+    {
+        return $existing
+            ? redirect()->to(base_url('admin/articles/edit/' . $id))
+            : redirect()->to(base_url('admin/articles/create'));
     }
 
     public function save()
@@ -97,7 +113,6 @@ class Articles extends BaseController
         // Auto-generate slug from title when blank; changing the title later
         // never silently changes a stored slug (the edit form pre-fills it).
         $slug = ($slug === '') ? mb_url_title($title, '-', true) : mb_strtolower($slug);
-        $this->request->setGlobal('post', array_merge($this->request->getPost(), ['slug' => $slug]));
 
         $slugRule = 'required|max_length[200]|regex_match[/^[a-z0-9]+(?:-[a-z0-9]+)*$/]';
         $slugRule .= $existing
@@ -111,20 +126,36 @@ class Articles extends BaseController
             'body'          => 'permit_empty',
             'status'        => 'required|in_list[draft,published]',
             'cover_alt'     => 'permit_empty|max_length[255]',
-            'category_id'   => 'permit_empty|is_natural_no_zero',
             'published_at'  => 'permit_empty|valid_date[Y-m-d]',
             'detail_layout' => 'required|in_list[full,sidebar]',
         ];
 
-        if (! $this->validate($rules)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        // Validate an EXPLICIT data set that includes the generated slug. The
+        // validator's withRequest() reads the merged GET+POST "request"
+        // global, which still holds the form's ORIGINAL (possibly blank)
+        // slug — mutating only the "post" global never reaches it, so a
+        // create submission with a blank slug failed with "slug required".
+        $validationData = array_merge($this->request->getPost(), ['slug' => $slug]);
+        if (! $this->validateData($validationData, $rules)) {
+            return $this->saveErrorRedirect($id, $existing)->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        // Category must exist when provided.
-        $categoryId = (int) ($this->request->getPost('category_id') ?: 0) ?: null;
-        if ($categoryId !== null && ! $this->categoryModel->find($categoryId)) {
-            return redirect()->back()->withInput()->with('error', 'Kategori yang dipilih tidak ditemukan.');
+        // Categories: selection stays OPTIONAL (the previous single-select
+        // was permit_empty), but every submitted ID must be a valid existing
+        // category. The exact submitted selection is saved, including removals.
+        $postedCategories = $this->request->getPost('category_ids') ?? [];
+        if (! is_array($postedCategories)) {
+            return $this->saveErrorRedirect($id, $existing)->withInput()->with('error', 'Pilihan kategori tidak valid.');
         }
+        $categoryIds = [];
+        foreach ($postedCategories as $postedCategoryId) {
+            $postedCategoryId = (int) $postedCategoryId;
+            if ($postedCategoryId <= 0 || ! $this->categoryModel->find($postedCategoryId)) {
+                return $this->saveErrorRedirect($id, $existing)->withInput()->with('error', 'Kategori yang dipilih tidak ditemukan.');
+            }
+            $categoryIds[] = $postedCategoryId;
+        }
+        $categoryIds = array_values(array_unique($categoryIds));
 
         // Tags must exist; keep only valid IDs.
         $postedTags = $this->request->getPost('tags') ?? [];
@@ -141,7 +172,7 @@ class Articles extends BaseController
         // Cover image: validate upload, then resolve (upload wins over library selection).
         $imageError = $this->validateImageUpload('cover_image');
         if ($imageError) {
-            return redirect()->back()->withInput()->with('errors', ['cover_image' => $imageError]);
+            return $this->saveErrorRedirect($id, $existing)->withInput()->with('errors', ['cover_image' => $imageError]);
         }
         $coverImage = $this->resolveImagePath(
             'cover_image',
@@ -161,7 +192,9 @@ class Articles extends BaseController
             'body'          => $this->sanitizeHtml($body),
             'cover_image'   => $coverImage !== '' ? $coverImage : null,
             'cover_alt'     => $this->request->getPost('cover_alt') ?: null,
-            'category_id'   => $categoryId,
+            // Legacy single-category column kept in sync as the PRIMARY
+            // (first selected) category; the pivot below is authoritative.
+            'category_id'   => $categoryIds[0] ?? null,
             'detail_layout' => $this->request->getPost('detail_layout'),
             'status'        => $status,
             'published_at'  => $publishedAt,
@@ -181,12 +214,13 @@ class Articles extends BaseController
             }
 
             $this->articleModel->syncTags((int) $articleId, $tagIds);
+            $this->articleModel->syncCategories((int) $articleId, $categoryIds);
 
             $db->transComplete();
         } catch (Throwable $e) {
             $db->transRollback();
             log_message('error', 'Article save failed: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan artikel. Silakan coba lagi.');
+            return $this->saveErrorRedirect($id, $existing)->withInput()->with('error', 'Gagal menyimpan artikel. Silakan coba lagi.');
         }
 
         return redirect()->to(base_url('admin/articles'))->with('success', $message);
@@ -201,9 +235,11 @@ class Articles extends BaseController
             return redirect()->to(base_url('admin/articles'))->with('error', 'Artikel tidak ditemukan.');
         }
 
-        // Remove tag links + the article row only. Shared media (cover image)
-        // is never deleted — it belongs to the media library.
-        \Config\Database::connect()->table('article_tags')->where('article_id', $id)->delete();
+        // Remove tag/category links + the article row only. Shared media
+        // (cover image) is never deleted — it belongs to the media library.
+        $db = \Config\Database::connect();
+        $db->table('article_tags')->where('article_id', $id)->delete();
+        $db->table('article_categories')->where('article_id', $id)->delete();
         $this->articleModel->delete($id);
 
         return redirect()->to(base_url('admin/articles'))->with('success', 'Artikel berhasil dihapus.');
@@ -223,19 +259,20 @@ class Articles extends BaseController
         $settingModel = new SettingModel();
         $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
 
-        $category = $article['category_id'] ? $this->categoryModel->find((int) $article['category_id']) : null;
-        $tagIds   = $this->articleModel->tagIdsForArticle($id);
-        $tags     = $tagIds ? $this->tagModel->whereIn('id', $tagIds)->findAll() : [];
+        $categoryIds = $this->articleModel->categoryIdsForArticle($id);
+        $categories  = $categoryIds ? $this->categoryModel->whereIn('id', $categoryIds)->orderBy('name', 'ASC')->findAll() : [];
+        $tagIds      = $this->articleModel->tagIdsForArticle($id);
+        $tags        = $tagIds ? $this->tagModel->whereIn('id', $tagIds)->findAll() : [];
 
         $related = ($article['detail_layout'] === 'sidebar')
-            ? $this->articleModel->relatedPublished($id, $article['category_id'] ? (int) $article['category_id'] : null)
+            ? $this->articleModel->relatedPublished($id, $categoryIds)
             : [];
 
         $this->response->setHeader('Cache-Control', 'no-store');
 
         return view('portal/blog_detail', [
             'article'     => $article,
-            'category'    => $category,
+            'categories'  => $categories,
             'tags'        => $tags,
             'related'     => $related,
             'identity'    => $identity,
@@ -276,10 +313,20 @@ class Articles extends BaseController
 
         $status  = in_array(($post['status'] ?? ''), ['draft', 'published'], true) ? $post['status'] : 'draft';
         $layout  = (($post['detail_layout'] ?? '') === 'full') ? 'full' : 'sidebar';
-        $catId   = (int) ($post['category_id'] ?? 0);
-        if ($catId > 0 && ! $this->categoryModel->find($catId)) {
-            $catId = 0;
+
+        // Categories from the checkbox list: keep only IDs that exist (the
+        // preview is best-effort, same spirit as the tag handling below).
+        $postedCategories = $post['category_ids'] ?? [];
+        $categoryIds      = [];
+        if (is_array($postedCategories)) {
+            foreach ($postedCategories as $postedCategoryId) {
+                $postedCategoryId = (int) $postedCategoryId;
+                if ($postedCategoryId > 0 && $this->categoryModel->find($postedCategoryId)) {
+                    $categoryIds[] = $postedCategoryId;
+                }
+            }
         }
+        $categoryIds = array_values(array_unique($categoryIds));
 
         // Cover: library selection wins for preview; a freshly uploaded but
         // unsaved file lives only on the client and cannot be rendered here.
@@ -307,7 +354,8 @@ class Articles extends BaseController
             'body'          => $this->sanitizeHtml($body),
             'cover_image'   => $cover !== '' ? $cover : null,
             'cover_alt'     => trim((string) ($post['cover_alt'] ?? '')),
-            'category_id'   => $catId ?: null,
+            // Legacy column mirrors the primary (first selected) category.
+            'category_id'   => $categoryIds[0] ?? null,
             'detail_layout' => $layout,
             'status'        => $status,
             'published_at'  => $publishedAt,
@@ -316,7 +364,7 @@ class Articles extends BaseController
         $settingModel = new SettingModel();
         $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
 
-        $category = $catId ? $this->categoryModel->find($catId) : null;
+        $categories = $categoryIds ? $this->categoryModel->whereIn('id', $categoryIds)->orderBy('name', 'ASC')->findAll() : [];
 
         $postedTags = $post['tags'] ?? [];
         $tagIds     = [];
@@ -331,14 +379,14 @@ class Articles extends BaseController
         $tags = $tagIds ? $this->tagModel->whereIn('id', $tagIds)->findAll() : [];
 
         $related = ($layout === 'sidebar')
-            ? $this->articleModel->relatedPublished($article['id'], $catId ?: null)
+            ? $this->articleModel->relatedPublished((int) $article['id'], $categoryIds)
             : [];
 
         $this->response->setHeader('Cache-Control', 'no-store');
 
         return view('portal/blog_detail', [
             'article'     => $article,
-            'category'    => $category,
+            'categories'  => $categories,
             'tags'        => $tags,
             'related'     => $related,
             'identity'    => $identity,

@@ -3,6 +3,99 @@
 ## Last Updated
 2026-11-07
 
+### Security review: public Blog filters (2026-11-07) — findings + fixes, uncommitted
+Focused review of `categories`, `tags`, `q`, `page`, legacy `category`/`tag`, and the async `/blog/results` endpoint against the running app (`127.0.0.1:8081`). Findings below — severity / affected file / evidence / fix / retest. Fixes are code-only (no article data or settings changed); the two temporary draft rows used for verification were deleted afterwards.
+
+#### Confirmed issues — FIXED
+- **HIGH — HTTP 500 on array / nested-array parameters** — `app/Controllers/Blog.php`.
+  - Evidence: `?q[]=a` → 500 `ErrorException: Array to string conversion` (line 162); `?page[]=1` → 500 (line 191); `?categories[a][b]=x` → 500.
+  - Fix: new `scalarParam()` coerces an array/null to `''` (so `q` degrades gracefully); `tokensFromParam()` now skips nested arrays; `page` is derived from a checked scalar string.
+  - Retest: `q[]=a`, `q[a][b]=a`, `categories[a][b]=x`, `categories[][][]=x`, `tags[]=kardio&tags[x]=zzz`, `categories[]=teknologi&categories[a]=x`, `page[]=1`, `page[a]=1` all return 200/302 with zero `TypeError`/`ErrorException`/`Array to string conversion` markers.
+- **HIGH — integer overflow → HTTP 500 on oversized `page`** — `app/Controllers/Blog.php`.
+  - Evidence: `?page=9223372036854775807` → 500 `TypeError: BaseBuilder::limit(): offset must be ?int, float given`.
+  - Fix: added `MAX_PAGE = 10000`; page is clamped with `min((int) $pageStr, MAX_PAGE)` and the normalize decision compares against `$pageStr` (string) rather than `(string)$pageRaw`, so out-of-range/array/scientific pages redirect instead of overflowing the `LIMIT` math.
+  - Retest: `page=9223372036854775807`, `99999999999999999999`, `2147483647`, `1e309`, `-5`, `abc`, `[]`, `[a]` → 302 to `/blog?page=10000` (or 200 for in-range), no 500.
+
+#### Findings — documented, NOT changed
+- **LOW — search treats `%`/`_` as LIKE wildcards** — `app/Models/ArticleModel.php` `publishedFiltered()`.
+  - Evidence: `?q=%`, `?q=%%`, `?q=___` each return all 19 published on page 1; `?q=%pag%` returns 4 (same as literal `pagi`). CI4 Query Builder `like()` binds the value (SQL-injection-safe) but leaves `%`/`_` as wildcards.
+  - Impact: broader-than-expected match results only — still limited to `status='published'`, no injection, no data leak.
+  - Recommendation: if literal search is required, escape `likeEscapeChar`/`%`/`_` in `q` before `like()` (left untouched to avoid fragile manual escaping that could double-escape backslashes under MySQLi `real_escape_string`).
+- **INFO — `CI_ENVIRONMENT = development` leaks debug detail on error pages** — `.env`.
+  - Evidence: any 404 (e.g. `/.env`) returns a JSON/HTML stack trace with absolute filesystem paths (`/Volumes/Data/Project/portal/system/CodeIgniter.php:1024`). Creditentials themselves are NOT exposed.
+  - Recommendation: set `CI_ENVIRONMENT = production` for a production deployment. Left as-is because it is the owner's local dev configuration and debugging is intentional here.
+
+#### Verified checks (passed)
+- **Visibility (published-only).** Temporary draft (`status='draft'`, unique slug) inserted: `/blog/{slug}` → 404; absent from listing page 1 and page 2; search `q=<token>` → empty state with `"total": 0`; async `/blog/results?q=<token>` → `"total": 0`, empty state, no card. Draft's unique token only surfaced as the (escaped) reflected search term in the input value + filter chip, never in any article card or title. Temporary row deleted — 19 published / 19 total restored.
+- **SQL injection.** No raw SQL; filter values flow through Query Builder `whereIn()`/`like()` binds and int-cast ids. `q=' OR 1=1--` → empty state "Tidak ada artikel", not "all articles"; `q=%27OR%201%3D1--` → 200 + empty state.
+- **Output escaping.** `q=<script>alert(1)</script>` renders escaped (`&lt;script&gt;`, 0 raw `<script>` in body) in both the search input (`esc()`) and the active-filter chip (`esc()`); article title/excerpt/cover-alt/category/tag names all `esc()`'d in `blog_results.php`; JS updates use `region.innerHTML = data.html` (server-escaped markup) with totals via `textContent`, history via `data.canonicalUrl`, and query building via `encodeURIComponent`/`rawurlencode`.
+- **Pagination.** 19 published with `PER_PAGE=10`: page 1 = 10 unique slugs, page 2 = 9 unique slugs, 19 distinct, 0 overlap; page 2 shows active page 2 + disabled "Berikutnya".
+- **Sensitive files not downloadable.** `/.env`, `/app/Controllers/Blog.php`, `/app/Models/ArticleModel.php`, `/bc_config/portal_db_*.sql.gz`, and `/writable/logs/*.log` all return HTTP 404 (docroot is `public/`, not the repo root).
+- **Secret hygiene.** `.env`, `bc_config/`, `writable/` are gitignored; the database password does not appear in any tracked file or in this PROGRESS.md.
+
+#### Untested / owner to confirm
+- Behaviour behind a separate WAF/reverse-proxy (none in this local setup).
+- `CI_ENVIRONMENT = production` path (would require a config change the owner owns).
+
+### Public Blog: async partial updates + canonical slug filter URLs (2026-11-07) — DONE, uncommitted
+**Confirmed cause of the "slow/stuck" loading (measured before the fix):** every checkbox change called native `form.submit()` — a **full-page navigation**. Each navigation re-downloaded and re-parsed the whole document (58,087 bytes HTML, 34–58 ms server time on localhost, plus 9 script/link references to re-evaluate) and dropped all in-flight work, so rapid selections aborted each other mid-flight → stuck/slow feel. Server queries were NOT the bottleneck: `EXPLAIN` shows indexed lookups (`ref`/`eq_ref`, pivot PKs), filtered query ~2 ms.
+
+**Implementation:**
+- [x] `app/Config/Routes.php` — new `GET blog/results → Blog::results` registered BEFORE `blog/(:segment)` (else "results" parses as an article slug).
+- [x] `app/Controllers/Blog.php` — rewritten: one filter parser (`parseFilterRequest()`) + ONE canonical URL builder (`blogUrl()`); new `results()` JSON endpoint (`{html, canonicalUrl, total, page, totalPages}`, `Cache-Control: no-store`, non-XHR → 302 to `/blog`); legacy/array/un-normalized document requests → 302 to the canonical URL (the redirect IS the normalization); shared `listingData()` powers both page and endpoint (public visibility rules everywhere, DISTINCT total, page clamped).
+- [x] Canonical URL format: `/blog?categories=kesehatan,kebugaran&tags=kardio,kesehatan-mental&q=…&page=2` — slugs deduped + sorted ascending, each slug `rawurlencode`d, `q` only when non-empty, `page` only when > 1. Numeric tokens in incoming URLs are mapped via id → slug; `categories[]`/`tags[]` arrays (no-JS form fallback) and legacy `category=`/`tag=` accepted then normalized.
+- [x] Validation caps: q ≤ 100 chars, ≤ 20 selections/group, token ≤ 100 chars, page clamped ≥ 1; unknown slugs dropped silently (no error, no loop — canonical-shaped URLs in any slug order are accepted without redirect, only dupes/legacy/array/malformed-page get 302'd). All lookups parameterized (`whereIn`); all reflected text `esc()`'d (verified `<script>alert(1)</script>` renders escaped).
+- [x] `app/Views/portal/blog_results.php` — NEW partial (active-filter chips + cards/empty state + pagination) rendered by BOTH the full page (inside `#blog-results-region`) and the results endpoint — identical markup from one code path; every link built by `$blogUrl` and carries `data-blog-link` for async interception.
+- [x] `app/Views/portal/blog_list.php` — checkbox name/value switched to slugs (`categories[]`/`tags[]` value=slug); shell now hosts only navbar/sidebar/loading-overlay/error-box; JS engine replaced: 250 ms debounce on checkbox changes (5 clicks in 8 ms → ONE request; 10-toggle burst in 1 ms → ONE request), AbortController cancels superseded requests, sequence counter so only the newest request may touch results/pagination/chips/URL and only the newest clears the loading overlay, timeout read per-request from `data-timeout` (default 8000), inline recoverable error ("Gagal memuat hasil… + Coba lagi") on failure/timeout, delegated listeners attached once at startup (9 link clicks after many content replacements → exactly 9 requests, no handler duplication), sidebar never disabled (overlay covers only the results column), `popstate` restores checkbox/q state and re-fetches without pushing history, pagination/chip/reset links intercepted for async updates with correct modifier-key/new-tab behavior, `pageshow` clears loading after Back/Forward cache restores.
+- [x] `public/assets/portal/css/custom.css` — `.blog-error` styles (light + dark variants), retry button.
+
+**Measured timings (localhost, curl):** full document `/blog?…` 33.7–57.6 ms, 58,087 bytes; JSON `/blog/results?…` 25.0–27.2 ms, 6,537 bytes (8.9× smaller payload, no CSS/JS/images re-fetched or re-parsed). In-browser: results fetch dur ≈ 77 ms / 6.3 KB transfer; `performance.getEntriesByType('navigation')` stays at exactly ONE entry (the initial load) — filter changes trigger zero document navigations.
+
+**Verified with real browser interactions (2026-11-07, current DB data):**
+- [x] Rapid selection: 5 checkboxes clicked in 8 ms → 1 debounced request; 10-toggle burst in 1 ms → 1 request; final results/chips/URL/checkboxes always match the LATEST selection (cat{kebugaran,kesehatan,teknologi}+tag{kardio,keamanan-digital} → 5, matches SQL).
+- [x] Cancelled requests: with a slow in-flight request, the next change aborts it (logged `aborted: true`, `AbortError` swallowed silently, no error box) and only the newer request updates the UI and clears loading; a delayed older response cannot overwrite newer results (seq guard verified with artificial 800 ms delay).
+- [x] Failed request (simulated network error): loading cleared, inline error + "Coba lagi" shown, URL unchanged, sidebar still interactive; retry re-applies the latest selection successfully.
+- [x] Timeout: `data-timeout="500"` override → request aborted at ~524 ms → error shown, loading cleared, URL unchanged; retry succeeds. (Found+fixed during verification: timeout is now read per-request so the override works at runtime.)
+- [x] Filter matching preserved (ANY/ANY/AND) and re-derived from CURRENT data (tag↔article assignment changed since morning: kardio now on articles 17–21): cat{kesehatan,kebugaran}+tag{kardio,kesehatan-mental}=5, cat{teknologi}+tag{kardio}=0 → async empty state "Tidak ada artikel yang sesuai." with Reset, cat{gym,teknologi}=9, tag{kardio,keamanan-digital}=10, cat{gym,kesehatan,teknologi}=14 → pages 10+4, all matching SQL.
+- [x] Pagination: async page clicks (URL gains `&page=2`, active page highlighted), page reset to 1 on every filter/search change (page param omitted), pagination links carry full canonical filter state.
+- [x] Chips: per-item × removal async and precise (removing search chip keeps categories+tags; removing one category keeps the rest+tags+q; sidebar checkbox unchecks in sync), Reset filter (sidebar + chips + empty state) → clean `/blog` in one async step.
+- [x] Search: submit (button/Enter) fetches async, keeps all checkbox selections, resets to page 1; q with spaces/&/= round-trips encoded (`q=pagi%20siang%26x%3D1`); q > 100 chars truncated.
+- [x] State: reload of `/blog?categories=gym,kesehatan,teknologi&page=2` restores page 2 + checked boxes; browser Back (popstate) → page 1 same filters; Forward → page 2 again; legacy `/blog?category=7` → 302 → `/blog?categories=teknologi` with the checkbox pre-checked; legacy `/blog?tag[]=4&category[]=8` → 302 → `/blog?categories=gaya-hidup&tags=kardio`.
+- [x] Normalization: dupes (`kebugaran,kesehatan,kebugaran`) → 302 to deduped+sorted; `page=abc` → 302 dropping page; unknown slug mixed with valid → 200, silently filtered by valid ones only; 25 duplicates → 1 canonical slug.
+- [x] Zero console errors across the whole session; mobile 390 px re-verified (no horizontal overflow, sidebar stacks, region + error box present); glass panel styles intact after cache-bust.
+
+### Public Blog sidebar: multi-select glass filters (2026-11-07) — DONE, uncommitted
+**Implementation (reuses the functional sidebar from the same day):**
+- [x] `app/Models/ArticleModel.php` — `publishedFiltered()` now takes `category_ids[]`/`tag_ids[]` sets: ANY id within a group (parameterized `whereIn`), groups + search combined with AND, empty group = no restriction; page uses GROUP BY `a.id` and the total uses `COUNT(DISTINCT a.id)` so multi-category articles (e.g. article 4 = categories 3,4,5) are returned and counted exactly once.
+- [x] `app/Controllers/Blog.php` — normalizes `category[]`/`tag[]` (multi) AND legacy `category=`/`tag=` single values through one path; invalid ids silently dropped after a parameterized existence check; selected rows passed for chips.
+- [x] `app/Views/portal/blog_list.php` — ONE GET form wraps the three glass panels (Pencarian / Kategori / Tag); categories and tags are vertical checkbox lists with clickable labels, right-aligned count badges, bounded 220px scrollable lists, `overflow-wrap:anywhere` labels; checkbox change auto-submits (page param omitted → back to page 1); "Reset filter" link in the sidebar + active-filter chips row (per-item × removal) + reset inside the empty state; loading overlay (`blog-loading`) shown on submit, cleared on `pageshow` (Back/Forward). Pagination links carry every `category[]`/`tag[]`/`q` in the same `category[]=` shape the form produces. Full navigation instead of fetch means no stale-response race is possible by construction (the spec's async guards are therefore not needed; visible loading state is still provided).
+- [x] `public/assets/portal/css/custom.css` — glass panels: `rgba(255,255,255,0.62)` + `backdrop-filter: blur(10px) saturate(1.15)`, thin light borders, 14px radius, soft light shadows, inset gloss; `@supports not (backdrop-filter)` opaque `#fff` fallback; `@media (prefers-color-scheme: dark)` dark-glass variant with light borders/text; keyboard focus ring (`:focus-visible` outline) and checked state clearly visible; mobile paddings + no horizontal overflow.
+
+**Verified with real browser interactions (2026-11-07):**
+- [x] Sidebar structure: 3 separate panels (Pencarian/Kategori/Tag), glass computed styles confirmed (`rgba(255,255,255,0.62)`, `blur(10px) saturate(1.15)`, radius 14px), badges right-aligned, 5 category + 10 tag checkboxes.
+- [x] Multi-category: Fitness 2 + Teknologi → 9 cards, both checkboxes stay checked, URL `?category[]=3&category[]=7`, chips per category; unchecking Fitness 2 → 5 cards, URL updated to `?category[]=7`.
+- [x] Multi-tag: Kardio + Keamanan Digital (with Teknologi category) → 5 cards (`category[]=7&tag[]=4&tag[]=13`), AND across groups.
+- [x] Combined: + search "data" → exactly 1 card ("Data Pribadi di Internet…"), q + all checkboxes preserved; active-filter row shows 4 chips.
+- [x] Empty result: Teknologi ∩ Kardio = 0 → "Tidak ada artikel yang sesuai." + Reset; chip × removes one id only (tag 13 removed, tag 4 stays checked).
+- [x] Reset filter → clean `/blog`, 10 cards, zero selections, zero chips.
+- [x] Pagination with filters (categories 3+5+7 = 14 articles): page 1 = 10, page 2 = 4, page links carry all `category[]` params, active page highlighted, checkboxes stay checked after navigation; **14 cards / 14 unique / 0 duplicates across pages**; article 4 (3 categories) appears exactly once.
+- [x] Reload of a filtered paginated URL restores the same 4 cards + checked boxes; browser Back returns to page 1 with the same filter selections (state lives in the URL).
+- [x] Legacy URLs still work AND pre-select the matching checkboxes: `/blog?category=7` → 5 cards; `/blog?tag=4` → 5 cards.
+- [x] Loading overlay shows on checkbox change (verified synchronously before navigation) and clears on `pageshow`.
+- [x] Mobile 390px (real iframe viewport): no horizontal overflow (`scrollWidth 390`), cards 1 column full width, sidebar stacks below the articles, search input + Cari button on one row, checkbox rows fit.
+- [x] Dark mode: rules present in the stylesheet (dark media query + `@supports` fallback verified in `cssRules`); simulated dark render shows readable contrast (`rgba(31,31,31,0.60)` panel, `#e6e6e6` labels, light badges). Light-mode label/badge colors verified via computed styles.
+- [x] Server-side cross-check: SQL counts match every filter combination tested (9 / 5 / 10 / 5 / 3 / 14 / 0).
+- [ ] Owner: real keyboard Tab pass over the checkboxes to feel the focus ring (rule verified in CSS; programmatic focus cannot trigger `:focus-visible`).
+
+### Public Blog experience: navigation, layout, functional sidebar, pagination, samples (2026-11-07) — DONE, uncommitted
+- [x] `app/Helpers/menu_helper.php` — the main BLOG menu entry (menu row is `section/blog`) now opens the full listing `/blog` instead of the homepage `#blog` anchor; other section anchors unchanged.
+- [x] `app/Models/ArticleModel.php` — `publishedFiltered()` (single category/tag + search), `publishedCategoryCounts()` / `publishedTagCounts()` (DISTINCT published counts for the sidebar), `publishedPaginated()` retained; order `published_at DESC, id DESC` everywhere.
+- [x] `app/Controllers/Blog.php` — server-side pagination at 10/page with DISTINCT total and last-page clamp; filters parsed/validated; sidebar data computed; `card_layout` still read from Pengaturan Blog.
+- [x] `app/Views/portal/blog_list.php` — 75%/25% two-column layout (`col-lg-9` cards / `col-lg-3` sidebar), Portal-theme pagination (Sebelumnya, 1, …, nearby pages, last, Berikutnya; active `#333` badge, disabled ends, hidden when 1 page), every page a reloadable URL, empty state, active-filter chips.
+- [x] `public/assets/portal/css/custom.css` — theme-color pagination (`#333` active, `#f2f3f5` hover), card readability fixes (left-aligned meta, `margin-top:0`, `overflow-wrap:anywhere`), sidebar panels.
+- [x] Sample content: the 15 requested Indonesian samples (5× Kesehatan/Teknologi/Gaya Hidup, tags wired) already existed from `articles:seed-topic-samples`; re-run skips all 15 (idempotent). 19 published total; owner article 4 kept as-is (owner later added categories 3,4,5 to it themselves).
+- [x] Verified: BLOG nav click lands on `/blog`; page 1 = 10, page 2 = 9, 19 unique / 0 repeats; sort `published_at DESC, id DESC` (equal dates ordered by id desc); single filters (Teknologi 5, kardio 5, "peregangan" 1), combined filter 1 result, unknown ids ignored, empty state for no matches; 2- and 3-column settings inside the 75% area (3-col: rows 3+3+3+1, 10th card new row same width); mobile 1 column; original setting restored to `grid_2_columns` via the admin form (DB row byte-identical: `card_layout`/`layout` = `grid_2_columns`, limit 3).
+
 ### Sample articles seeded; database was reset externally (2026-11-06)
 - [x] **Important discovery:** `portal_db` was wiped and re-seeded externally between sessions — ALL owner articles (1, 2, 3, 10, 12), pages, article_tags, and older media rows are gone; `admins` table replaced by `admin_users` (10 migrations applied). Code/docs from earlier milestones are unaffected; only their DB references are gone. Nothing was deleted by us.
 - [x] Created 4 sample articles via a temporary idempotent spark command (`app/Commands/SeedSampleArticles.php`, untracked, safe to delete): uses the editor's exact persistence path (`ArticleModel::insert` + `syncTags` + shared `SanitizesHtml`). Published: id 1 `menata-meja-kerja-dalam-15-menit` (154 kata), id 2 `akhir-pekan-di-subang-jalan-pagi-dan-berburu-foto` (164 kata), id 3 `cara-membuat-cadangan-foto-keluarga` (159 kata) — all `2026-11-06`, category 3, tag 2 on 1 & 2. Draft: id 4 `catatan-uji-editor-gambar-dan-video-youtube` (161 kata) with media-library image (media #22) at 25% `img-align-center`, short caption, one deliberate `<p>&nbsp;</p>`, then the project's dQw4w9WgXcQ responsive embed.
@@ -132,6 +225,53 @@ The earlier YouTube selection/deletion + fullscreen/resize milestone (2026-11-05
 - [ ] The drag interaction inside the crop dialog (selection rectangle) on a real pointer device — apply/cancel flow was verified programmatically.
 
 Test fixtures used for verification (test article + cropped media file) were removed afterwards; owner content untouched (5 articles incl. owner's own test draft, 3 pages, 3 tags, 1 category intact). No commit/push performed.
+
+
+### Public navigation: URL hash + active item + scroll offset consistency (2026-11-07) — DONE, uncommitted
+
+**Root cause:** `custom.js` bound section-link clicks with `e.preventDefault()` and jQuery smooth-scroll but never wrote `location.hash`; Bootstrap 5 ScrollSpy only toggled `.active`, never the URL. `bootstrap.Collapse.getOrCreateInstance(collapse)` with default `toggle: true` also auto-showed a closed mobile menu when a nav link was clicked.
+
+**Implementation:**
+- [x] `public/assets/portal/js/custom.js` — single-source nav block:
+  - `HEADER_OFFSET` measured from the live `#mainNav` height (≈68 px), used for both scroll target and ScrollSpy `offset`.
+  - `scrollToHash()` drives every programmatic jump (link click, logo, back-to-top, Back/Forward, direct-hash load), offsets by `HEADER_OFFSET - 8 px` so headings clear the navbar, and uses `pushState` for clicks / `replaceState` for restore/manual-scroll.
+  - Manual scroll mirrors ScrollSpy's active section to the URL via `replaceState` only after the user has actually scrolled (`hasScrolled`), so no history spam occurs.
+  - `programmaticScroll` + `suppressingHash` flags prevent ScrollSpy from overwriting the URL mid-animation.
+  - `setNavActive()` fallback guarantees the nav matches the target even when ScrollSpy's direction-aware IntersectionObserver skips a programmatic jump.
+  - Logo (`#page-top`) and back-to-top both scroll to top and set `/#home` via `replaceState` (no extra history entry).
+  - Mobile menu close now uses `bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false }).hide()` so a closed menu is never auto-shown.
+- [x] `app/Helpers/menu_helper.php` — computes `active` flag server-side for blog/page items from `service('uri')->getPath()`; section items on the homepage remain driven by ScrollSpy.
+- [x] `app/Views/portal/blog_list.php`, `blog_detail.php`, `page.php` — render `active` class on matching nav items; mobile menu close uses `{ toggle: false }`.
+- [x] `app/Views/portal/home.php` — temporary cache-buster `?v=2026110705` on `custom.js` include to defeat browser cache during verification (to be reverted or kept).
+
+**Verified with real browser interactions (headless Chromium, 888×804 viewport, 2026-11-07):**
+
+| Label | Expected dest | Observed final URL | Active item | ScrollY (≈target) | Result |
+|---|---|---|---|---|---|
+| Home (fresh load) | `/` | `/` | Home | 0 | ✓ |
+| About click | `/#about` | `/#about` | About Us | 533–690 | ✓ |
+| Portfolio click | `/#portfolio` | `/#portfolio` | Portfolio | 1179–1217 | ✓ |
+| Contact click | `/#contact` | `/#contact` | Contact Us | 4121–4234 | ✓ |
+| Home click | `/#home` | `/#home` | Home | 0 | ✓ |
+| Manual scroll to Portfolio | `/#portfolio` (replaceState) | `/#portfolio` | Portfolio | 1183 | ✓ |
+| Manual scroll to About | `/#home` (replaceState) | `/#home` | Home | 525 | ✓ |
+| Logo click | `/#home` | `/#home` | Home | 0 | ✓ |
+| Back-to-top click | `/#home` | `/#home` | Home | 0 | ✓ |
+| Back/Forward (click history) | prior/fwd hash | matches | correct | matches | ✓ |
+| Direct load `/#about` | `/#about` | `/#about` | About Us | 533–690 | ✓ |
+| Direct load `/#contact` | `/#contact` | `/#contact` | Contact Us | 4121–4221 | ✓ |
+| Reload `/#about` | `/#about` | `/#about` | About Us | 533 | ✓ |
+| Blog nav click from `/` | `/blog` | `/blog` | Blog | — | ✓ |
+| Test1 nav click from `/` | `/pages/test` | `/pages/test` | Test1 | — | ✓ |
+| Cross-page About from `/pages/test` | `/#about` | `/#about` | About Us | 533 | ✓ |
+| Mobile menu open → About click | closes + `/#about` | closes | About Us | 533 | ✓ |
+
+**Standalone-page server-side active checks (curl):**
+- `/blog` → Blog active; `/blog/{slug}` → Blog active; `/pages/test` → Test1 active.
+
+**Notes / caveats:**
+- ScrollSpy's active boundary for the About section is slightly above its physical top (scrollY ≈ 525 for aboutTop ≈ 593 with HEADER_OFFSET 68), which is expected Bootstrap 5 behavior with the configured offset; the nav and URL remain consistent.
+- The temporary `?v=2026110705` cache-buster should be removed before release if a long-term asset versioning scheme is preferred.
 
 ## Status
 Articles module (admin CRUD + public blog) implemented with a repeat-safe fitness demo, Blog layout settings, menu integration, and a self-hosted TinyMCE editor with full image management (upload, media-library selection, resize presets, alignment, visual cropping, animated GIF support) and YouTube video embedding. Database connection error handling added (HTTP 503 with clean Indonesian error page). Admin interface uses AdminLTE 4.10.1. Pages and Navigation Menu management implemented. All completed modules below are committed/pushed to `origin/main` (except AdminLTE migration, Pages/Navigation, Articles, image management, and error-handling changes which are uncommitted). Backend verified via curl; visual editor interactions require owner manual testing (see Verification section).

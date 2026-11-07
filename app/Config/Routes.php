@@ -9,6 +9,8 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('/', 'Home::index');
 $routes->get('pages/(:segment)', 'Page::show/$1');
 $routes->get('blog', 'Blog::index');
+// Must stay BEFORE blog/(:segment) so "results" is not read as an article slug.
+$routes->get('blog/results', 'Blog::results');
 $routes->get('blog/(:segment)', 'Blog::show/$1');
 
 // Admin auth routes

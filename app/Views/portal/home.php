@@ -21,7 +21,7 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/bootstrap.min.css') ?>">
     <!-- Site CSS -->
-    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/portal/style.css') ?>?v=2026110706">
     <!-- Responsive CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/responsive.css') ?>">
     <!-- Custom CSS -->
@@ -302,11 +302,12 @@
             <?php if (empty($blogArticles)): ?>
                 <p class="text-muted">Belum ada artikel yang diterbitkan.</p>
             <?php else: ?>
-                <?php $blogColClass = ($blog['card_layout'] ?? 'grid_3_columns') === 'grid_2_columns' ? 'col-md-6 col-lg-6' : 'col-md-4 col-sm-6 col-lg-4'; ?>
+                <?php // Same desktop column choice as the full Blog listing; 1 column on small screens. ?>
+                <?php $blogColClass = ($blog['card_layout'] ?? 'grid_3_columns') === 'grid_2_columns' ? 'col-12 col-md-6' : 'col-12 col-md-4'; ?>
                 <div class="row">
                     <?php foreach ($blogArticles as $ba): ?>
                     <div class="<?= $blogColClass ?>">
-                        <div class="post-box">
+                        <div class="post-box portal-blog-card <?= empty($ba['cover_image']) ? 'no-cover' : '' ?>">
                             <?php if (! empty($ba['cover_image'])): ?>
                             <div class="post-thumb">
                                 <a href="<?= base_url('blog/' . $ba['slug']) ?>">
@@ -326,7 +327,6 @@
                                     <?php if (! empty($ba['published_at'])): ?>
                                     <li><?= esc(date('d M Y', strtotime($ba['published_at']))) ?></li>
                                     <?php endif; ?>
-                                    <li><a href="<?= base_url('blog') ?>"><b>Lihat semua artikel</b></a></li>
                                 </ul>
                                 <?php if (! empty($ba['excerpt'])): ?>
                                 <p><?= esc($ba['excerpt']) ?></p>
@@ -335,6 +335,11 @@
                         </div>
                     </div>
                     <?php endforeach; ?>
+                </div>
+
+                <?php /* Single "see all" link below the homepage grid. */ ?>
+                <div class="text-center blog-see-all">
+                    <a href="<?= base_url('blog') ?>"><b>Lihat semua artikel</b></a>
                 </div>
             <?php endif; ?>
 
@@ -423,7 +428,7 @@
     <script src="<?= base_url('assets/portal/js/headline.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/jqBootstrapValidation.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/contact_me.js') ?>"></script>
-    <script src="<?= base_url('assets/portal/js/custom.js') ?>"></script>
+    <script src="<?= base_url('assets/portal/js/custom.js') ?>?v=2026110705"></script>
     <script src="<?= base_url('assets/portal/js/jquery.vide.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/retina.js') ?>"></script>
 

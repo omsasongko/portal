@@ -15,42 +15,187 @@
   // fully controllable and responsive.
   document.documentElement.style.scrollBehavior = 'auto';
 
-  // Smooth scrolling using jQuery easing
-  $('a.js-scroll-trigger[href*="#"]:not([href="#"])').click(function (e) {
-    if (location.pathname.replace(/^\//, '') == this.pathname.replace(/^\//, '') && location.hostname == this.hostname) {
-      var target = $(this.hash);
-      target = target.length ? target : $('[name=' + this.hash.slice(1) + ']');
-      if (target.length) {
-        e.preventDefault();
-        var top = Math.max(target.offset().top - 54, 0);
+  // ------------------------------------------------------------------
+  // Section navigation — single source of truth for the homepage.
+  //   click  -> smooth-scroll past the fixed header + pushState (new entry)
+  //   manual scroll -> ScrollSpy drives .active; we mirror it to the URL with
+  //                    replaceState (no history spam)
+  //   Back/Forward / direct hash -> restore the matching section
+  // ------------------------------------------------------------------
 
-        // Cancel any in-progress or queued animation so rapid clicks respond
-        // immediately and only one navigation action is ever running.
-        $scrollRoot.stop(true);
+  // Headers tagged "top" (the brand logo uses #page-top, the body id) resolve
+  // to the very top of the page and are recorded as #home in the URL.
+  var isTopHash = function (hash) {
+    return !hash || hash === '#' || hash === '#page-top';
+  };
 
-        if (prefersReducedMotion) {
-          // Respect reduced-motion: jump straight to the target.
-          $scrollRoot.scrollTop(top);
-        } else {
-          // Short, snappy scroll that starts moving on the first frame.
-          $scrollRoot.animate({ scrollTop: top }, 300, 'easeOutCubic');
-        }
-      }
+  var canonicalHash = function (hash) {
+    return isTopHash(hash) ? '#home' : hash;
+  };
+
+  // Fixed-header height, used BOTH to offset the scroll target and to configure
+  // ScrollSpy so the landing position and the "active" line always agree. The
+  // `.navbar-shrink` style is a couple of pixels taller, so use the un-shrunk
+  // height (68) as a stable reference; the section's own 70px top padding keeps
+  // headings fully visible either way.
+  var HEADER_OFFSET = (function () {
+    var nav = document.getElementById('mainNav');
+    var h = nav ? nav.offsetHeight : 0;
+    return h >= 64 ? h : 68; // ignore pre-load / toggler-only heights
+  })();
+
+  var resolveTarget = function (hash) {
+    if (isTopHash(hash)) {
+      return { top: 0 };
     }
+    var target = $(hash);
+    if (!target.length) {
+      target = $('[name=' + hash.slice(1) + ']');
+    }
+    if (!target.length) {
+      return null;
+    }
+    // Leave a small visual gap (8px) so the section heading is not glued to
+    // the navbar and ScrollSpy's active zone is clearly entered.
+    return { top: Math.max(target.offset().top - HEADER_OFFSET + 8, 0) };
+  };
+
+  // True while a link-driven animation is in flight, so the ScrollSpy
+  // "activate" handler does not rewrite the URL mid-animation.
+  var programmaticScroll = false;
+
+  // The hash the current programmatic scroll is driving toward. ScrollSpy may
+  // briefly mark other sections active while the page is moving; we ignore any
+  // activate event whose href matches the one we are already heading to.
+  var suppressingHash = null;
+
+  // Set the matching nav link active and deactivate its siblings. Used as a
+  // reliable fallback when Bootstrap ScrollSpy's IntersectionObserver hasn't
+  // caught up after a programmatic jump.
+  var setNavActive = function (hash) {
+    var href = canonicalHash(hash);
+    $('#mainNav .nav-link').removeClass('active');
+    var link = document.querySelector('#mainNav .nav-link[href="' + href + '"]');
+    if (link) {
+      $(link).addClass('active');
+      // Also mark parent list items for Bootstrap ScrollSpy compatibility.
+      $(link).parents('li').addClass('active');
+    }
+  };
+
+  var scrollToHash = function (hash, push) {
+    var resolved = resolveTarget(hash);
+    if (!resolved) return;
+
+    programmaticScroll = true;
+    var fragment = canonicalHash(hash);
+    suppressingHash = fragment;
+
+    var settle = function () {
+      // Force the correct active item so the nav always reflects the target
+      // even when ScrollSpy's direction-aware observer skips the jump.
+      setNavActive(hash);
+      programmaticScroll = false;
+      suppressingHash = null;
+      // Refresh ScrollSpy so subsequent manual scrolling remains in sync.
+      var spy = bootstrap.ScrollSpy.getInstance(document.body);
+      if (spy) spy.refresh();
+    };
+
+    if (prefersReducedMotion) {
+      $scrollRoot.scrollTop(resolved.top);
+      settle();
+    } else {
+      $scrollRoot.stop(true).animate({ scrollTop: resolved.top }, 300, 'easeOutCubic', settle);
+    }
+
+    if (push) {
+      history.pushState(null, '', fragment);
+    } else {
+      history.replaceState(null, '', fragment);
+    }
+  };
+
+  // Smooth scrolling for in-page section links (and the brand logo).
+  $('a.js-scroll-trigger[href*="#"]:not([href="#"])').click(function (e) {
+    if (location.pathname.replace(/^\//, '') !== this.pathname.replace(/^\//, '') ||
+        location.hostname !== this.hostname) {
+      return; // cross-page link -> let the browser navigate natively
+    }
+    e.preventDefault();
+    scrollToHash(this.hash, true);
   });
 
   // Closes responsive menu when a scroll trigger link is clicked
   $('.js-scroll-trigger').click(function () {
     var navbarCollapse = document.querySelector('.navbar-collapse');
     if (navbarCollapse) {
-      bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+      // toggle:false stops getOrCreateInstance from auto-showing a closed
+      // (or never-opened) menu; hide() then just collapses an open one.
+      bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false }).hide();
     }
   });
 
-  // Activate scrollspy to add active class to navbar items on scroll
+  // Activate scrollspy to add the active class to navbar items on scroll.
   new bootstrap.ScrollSpy(document.body, {
     target: '#mainNav',
-    offset: 56
+    offset: HEADER_OFFSET
+  });
+
+  // Track whether the user has scrolled at all, so a plain initial load of "/"
+  // (no fragment) is not silently rewritten to "/#home".
+  var hasScrolled = false;
+  $(window).on('scroll.navhash', function () { hasScrolled = true; });
+
+  // Mirror ScrollSpy's choice to the URL (in place, no new history entry)
+  // whenever the active section changes from a real user scroll. We only write
+  // the hash once the user has actually scrolled, so a direct load like /#about
+  // (or the initial top-of-page "Home" state) is never rewritten to #home.
+  $(document.body).on('activate.bs.scrollspy', function (e) {
+    if (programmaticScroll) return;          // a link/logo animation owns the URL
+    if (!hasScrolled) return;                // initial load / direct hash -> leave URL alone
+    var link = e.relatedTarget;
+    if (!link || !link.classList || !link.classList.contains('nav-link')) return;
+    var href = link.getAttribute('href');
+    if (!href || href.charAt(0) !== '#') return;
+    var fragment = canonicalHash(href);
+    if (fragment === suppressingHash) return; // we are already driving to this hash
+    history.replaceState(null, '', fragment);
+  });
+
+  // Take over scroll restoration so Back/Forward and direct fragments always
+  // land below the fixed header.
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
+  var restoreFromHash = function () {
+    var hash = location.hash;
+    if (hash && hash !== '#') {
+      scrollToHash(hash, false);
+    } else {
+      // No fragment: return to the top (Home).
+      programmaticScroll = true;
+      var settle = function () { programmaticScroll = false; };
+      if (prefersReducedMotion) {
+        $scrollRoot.scrollTop(0);
+        settle();
+      } else {
+        $scrollRoot.stop(true).animate({ scrollTop: 0 }, 300, 'easeOutCubic', settle);
+      }
+    }
+  };
+  window.addEventListener('popstate', restoreFromHash);
+  window.addEventListener('hashchange', restoreFromHash);
+
+  // Direct load with a fragment (or a cross-page "/#section" link landing
+  // here): once images/layout settle, move below the fixed header without
+  // creating a history entry (the fragment is already in the URL).
+  $(window).on('load', function () {
+    var hash = location.hash;
+    if (hash && hash !== '#') {
+      scrollToHash(hash, false);
+    }
   });
 
   // Collapse Navbar
@@ -91,12 +236,9 @@
     });
     $('#scroll-to-top').on('click', function (e) {
       e.preventDefault();
-      $scrollRoot.stop(true);
-      if (prefersReducedMotion) {
-        $scrollRoot.scrollTop(0);
-      } else {
-        $scrollRoot.animate({ scrollTop: 0 }, 300, 'easeOutCubic');
-      }
+      // Scroll to the top and reflect it in the URL as #home (replaceState,
+      // so the "back to top" utility never adds a history entry).
+      scrollToHash('#page-top', false);
     });
   }
 

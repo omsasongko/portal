@@ -8,7 +8,7 @@
     <ul class="mb-0 small">
         <li><strong>Urutan menu navigasi</strong> diatur di <a href="<?= base_url('admin/menu') ?>">Menu</a> (tombol naik/turun).</li>
         <li><strong>Urutan &amp; visibilitas bagian homepage</strong> (Hero, About, Layanan, dst.) diatur di masing-masing layar Pengaturan bagian tersebut.</li>
-        <li><strong>Tata letak kartu Blog di homepage</strong> (2 atau 3 kolom) diatur di layar ini.</li>
+        <li><strong>Tata letak kartu Blog</strong> (2 atau 3 kolom di desktop) diatur di layar ini dan berlaku untuk Bagian Blog di homepage <em>dan</em> halaman daftar Blog (/blog).</li>
         <li><strong>Tata letak halaman detail artikel</strong> (lebar penuh atau dengan sidebar artikel terkait) dipilih per artikel di form Tambah/Edit Artikel.</li>
     </ul>
 </div>
@@ -58,7 +58,11 @@
                         <input class="form-check-input" type="radio" name="card_layout" id="layout2" value="grid_2_columns" <?= old('card_layout', $blog['card_layout'] ?? '') === 'grid_2_columns' ? 'checked' : '' ?>>
                         <label class="form-check-label" for="layout2">2 kolom (desktop)</label>
                     </div>
-                    <div class="form-text">Template responsif bawaan: di layar kecil kartu otomatis menjadi 1 kolom.</div>
+                    <div class="form-text">
+                        Berlaku untuk kartu Bagian Blog di homepage <strong>dan</strong> kartu di halaman daftar Blog (/blog).
+                        Di layar kecil kedua halaman otomatis menjadi 1 kolom. Jumlah kartu homepage tetap diatur lewat
+                        &ldquo;Jumlah Artikel di Homepage&rdquo;; halaman daftar selalu menampilkan 10 artikel terbit per halaman.
+                    </div>
                 </div>
             </div>
 

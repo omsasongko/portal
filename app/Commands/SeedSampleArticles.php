@@ -86,6 +86,9 @@ class SeedSampleArticles extends BaseCommand
 
             $id = $articleModel->insert($data, true);
             $articleModel->syncTags((int) $id, $a['tags']);
+            // Keep the article_categories pivot consistent with the legacy
+            // category_id column for multi-category support.
+            $articleModel->syncCategories((int) $id, $a['category_id'] ? [(int) $a['category_id']] : []);
             $created[] = ['id' => $id, 'slug' => $a['slug'], 'status' => $a['status']];
         }
 

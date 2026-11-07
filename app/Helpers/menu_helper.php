@@ -32,6 +32,16 @@ if (! function_exists('build_public_menu')) {
 
         $prefix = $homepageQualified ? rtrim(base_url('/'), '/') . '/' : '';
 
+        // Current route path (relative to baseURL, no leading/trailing slash)
+        // used to mark the matching menu item active on standalone pages
+        // (the homepage relies on ScrollSpy instead, where path is empty).
+        $currentPath = '';
+        try {
+            $currentPath = trim((string) service('uri')->getPath(), '/');
+        } catch (\Throwable $e) {
+            $currentPath = '';
+        }
+
         $result = [];
         foreach ($menuModel->getOrdered() as $item) {
             if (! $item['is_visible']) {
@@ -42,8 +52,16 @@ if (! function_exists('build_public_menu')) {
                 if (! ($sectionMap[$item['target']] ?? false)) {
                     continue;
                 }
-                $item['url']        = $prefix . '#' . $item['target'];
-                $item['is_section'] = true;
+                if ($item['target'] === 'blog') {
+                    // The BLOG entry always opens the full public article
+                    // listing (its own route), not the homepage anchor, so the
+                    // main navigation reaches every article and pagination.
+                    $item['url']        = base_url('blog');
+                    $item['is_section'] = false;
+                } else {
+                    $item['url']        = $prefix . '#' . $item['target'];
+                    $item['is_section'] = true;
+                }
             } elseif ($item['type'] === 'page') {
                 if (! $pageModel->findPublishedBySlug($item['target'])) {
                     continue;
@@ -58,6 +76,17 @@ if (! function_exists('build_public_menu')) {
                 $item['is_section'] = false;
             } else {
                 continue;
+            }
+
+            // Mark this item active when its destination matches the current
+            // page. Section items (home/about/portfolio/contact) are left to
+            // ScrollSpy on the homepage and are never force-marked here.
+            $item['active'] = false;
+            if ($item['type'] === 'page') {
+                $item['active'] = $currentPath === 'pages/' . $item['target'];
+            } elseif (($item['type'] === 'articles')
+                || ($item['type'] === 'section' && $item['target'] === 'blog')) {
+                $item['active'] = $currentPath === 'blog' || str_starts_with($currentPath, 'blog/');
             }
 
             $result[] = $item;
