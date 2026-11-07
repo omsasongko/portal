@@ -28,13 +28,52 @@
     <link rel="stylesheet" href="<?= base_url('assets/portal/css/custom.css') ?>">
 
     <style>
+        /* Full-height flex layout so the footer stays at the bottom on short pages. */
+        body#page-top.politics_version {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: -ms-flexbox;
+            display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -webkit-flex-direction: column;
+            -ms-flex-direction: column;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        body#page-top.politics_version > main.page-content-wrapper {
+            -webkit-box-flex: 1;
+            -webkit-flex: 1 0 auto;
+            -ms-flex: 1 0 auto;
+            flex: 1 0 auto;
+        }
+        body#page-top.politics_version > footer.copyrights {
+            -webkit-flex-shrink: 0;
+            -ms-flex-negative: 0;
+            flex-shrink: 0;
+        }
+
         .page-content-wrapper {
             padding-top: 100px;
             padding-bottom: 60px;
-            min-height: 60vh;
         }
-        .page-content-wrapper h1 {
-            margin-bottom: 30px;
+        .page-content-wrapper .section-title {
+            margin-bottom: 60px;
+        }
+        .page-content-wrapper .section-title h3 {
+            margin: 0 0 25px;
+            padding: 0;
+            text-transform: none;
+        }
+
+        @media (max-width: 767px) {
+            body#page-top.politics_version {
+                min-height: 100vh;
+            }
+            .page-content-wrapper .section-title h3 {
+                font-size: 28px;
+                line-height: 1.4;
+            }
         }
         .page-content-wrapper img {
             max-width: 100%;
@@ -75,16 +114,18 @@
       </div>
     </nav>
 
-    <div class="page-content-wrapper">
+    <main class="page-content-wrapper">
         <div class="container">
-            <h1><?= esc($page['title']) ?></h1>
+            <div class="section-title text-start">
+                <h3><?= esc($page['title']) ?></h3>
+            </div>
             <div class="page-body">
                 <?= $page['content'] ?>
             </div>
         </div>
-    </div>
+    </main>
 
-    <div class="copyrights">
+    <footer class="copyrights">
         <div class="container">
             <div class="footer-distributed">
                 <div class="footer-left">
@@ -97,7 +138,7 @@
                 </div>
             </div>
         </div><!-- end container -->
-    </div><!-- end copyrights -->
+    </footer><!-- end copyrights -->
 
     <?php if (($identity['show_scroll_to_top'] ?? '1') === '1'): ?>
     <a href="#" id="scroll-to-top" class="dmtop global-radius"><i class="fa fa-angle-up"></i></a>

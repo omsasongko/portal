@@ -75,6 +75,10 @@ class Home extends BaseController
             $blogArticles = $articleModel->latestPublished($limit);
         }
 
+        $contactSection = $sectionModel->findSection('contact');
+        $contact        = $contactSection ? json_decode($contactSection['content'], true) : [];
+        $contactEnabled = $contactSection ? (bool) $contactSection['is_enabled'] : true;
+
         // Build dynamic navigation menu (shared helper; section links are
         // plain "#anchor" on the homepage for the smooth-scroll behavior).
         $menuItems = build_public_menu(false);
@@ -97,6 +101,8 @@ class Home extends BaseController
             'blog'                => $blog,
             'blogEnabled'         => $blogEnabled,
             'blogArticles'        => $blogArticles,
+            'contact'             => $contact,
+            'contactEnabled'      => $contactEnabled,
             'menuItems'           => $menuItems,
         ]);
     }

@@ -420,6 +420,7 @@ class Blog extends BaseController
         $cardLayout   = ($blog['card_layout'] ?? 'grid_3_columns') === 'grid_2_columns' ? 'grid_2_columns' : 'grid_3_columns';
 
         return [
+            'blogTitle'          => $blogSection['title'] ?? 'Blog',
             'articles'           => $result['articles'],
             'total'              => $total,
             'page'               => $page,

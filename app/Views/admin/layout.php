@@ -79,7 +79,7 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                         </li>
 
                         <?php
-                        $settingsChildren = ['identity', 'hero', 'about', 'services', 'portfolio', 'testimonials', 'blog'];
+                        $settingsChildren = ['identity', 'hero', 'about', 'services', 'portfolio', 'testimonials', 'blog', 'contact'];
                         $isSettingsOpen = ($segment2 === 'settings');
                         ?>
                         <li class="nav-item <?= $isSettingsOpen ? 'menu-open' : '' ?>">
@@ -131,6 +131,12 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                                     <a href="<?= base_url('admin/settings/blog') ?>" class="nav-link <?= $segment2 === 'settings' && $segment3 === 'blog' ? 'active' : '' ?>">
                                         <i class="nav-icon bi bi-circle"></i>
                                         <p>Blog</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="<?= base_url('admin/settings/contact') ?>" class="nav-link <?= $segment2 === 'settings' && $segment3 === 'contact' ? 'active' : '' ?>">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Contact</p>
                                     </a>
                                 </li>
                             </ul>

@@ -1057,6 +1057,84 @@ class Settings extends BaseController
         return redirect()->to('/admin/settings/blog')->with('success', 'Pengaturan Blog berhasil disimpan.');
     }
 
+    public function contact()
+    {
+        $section = $this->sectionModel->findSection('contact');
+        $content = $section ? json_decode($section['content'], true) : [];
+
+        $defaults = [
+            'heading'          => 'Contact',
+            'description'      => 'Quisque eget nisl id nulla sagittis auctor quis id. Aliquam quis vehicula enim, non aliquam risus.',
+            'name_placeholder' => 'Your Name',
+            'email_placeholder'=> 'Your Email',
+            'phone_placeholder'=> 'Your Phone',
+            'message_placeholder' => 'Your Message',
+            'submit_label'     => 'Send Message',
+        ];
+
+        foreach ($defaults as $key => $value) {
+            if (empty($content[$key])) {
+                $content[$key] = $value;
+            }
+        }
+
+        return view('admin/settings_contact', [
+            'title'          => 'Pengaturan Contact',
+            'contact'        => $content,
+            'sectionEnabled' => $section ? (bool) $section['is_enabled'] : true,
+        ]);
+    }
+
+    public function doContact()
+    {
+        $rules = [
+            'heading'             => 'required|max_length[255]',
+            'description'         => 'permit_empty|max_length[2000]',
+            'name_placeholder'    => 'required|max_length[100]',
+            'email_placeholder'   => 'required|max_length[100]',
+            'phone_placeholder'   => 'required|max_length[100]',
+            'message_placeholder' => 'required|max_length[100]',
+            'submit_label'        => 'required|max_length[100]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $content = [
+            'heading'             => $this->request->getPost('heading'),
+            'description'         => $this->request->getPost('description') ?? '',
+            'name_placeholder'    => $this->request->getPost('name_placeholder'),
+            'email_placeholder'   => $this->request->getPost('email_placeholder'),
+            'phone_placeholder'   => $this->request->getPost('phone_placeholder'),
+            'message_placeholder' => $this->request->getPost('message_placeholder'),
+            'submit_label'        => $this->request->getPost('submit_label'),
+        ];
+
+        $isEnabled = $this->request->getPost('is_enabled') ? 1 : 0;
+
+        $section = $this->sectionModel->findSection('contact');
+        if ($section) {
+            $this->sectionModel->update($section['id'], [
+                'title'      => $content['heading'],
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+                'layout'     => 'contact_form',
+                'is_enabled' => $isEnabled,
+            ]);
+        } else {
+            $this->sectionModel->insert([
+                'section'    => 'contact',
+                'title'      => $content['heading'],
+                'layout'     => 'contact_form',
+                'is_enabled' => $isEnabled,
+                'sort_order' => 6,
+                'content'    => json_encode($content, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        return redirect()->to('/admin/settings/contact')->with('success', 'Pengaturan Contact berhasil disimpan.');
+    }
+
     protected function validateImageUpload(string $field): ?string
     {
         $file = $this->request->getFile($field);

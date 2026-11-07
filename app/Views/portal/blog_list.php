@@ -62,8 +62,7 @@
     <div class="blog-list-wrapper" id="blog-root" data-results-url="<?= esc($resultsUrl) ?>" data-timeout="8000">
         <div class="container">
             <div class="section-title text-start">
-                <h3>Blog</h3>
-                <p id="blog-total-note">Semua artikel yang telah diterbitkan<?php if (($total ?? 0) > 0): ?> — <?= (int) $total ?> artikel<?php endif; ?>.</p>
+                <h3><?= esc($blogTitle ?? 'Blog') ?></h3>
             </div>
 
             <div class="row">
@@ -213,7 +212,6 @@
         var loading = document.getElementById('blog-loading');
         var errorBox = document.getElementById('blog-error');
         var retryBtn = document.getElementById('blog-error-retry');
-        var totalNote = document.getElementById('blog-total-note');
         if (!root || !form || !region) return;
 
         var RESULTS_URL = root.getAttribute('data-results-url');
@@ -293,13 +291,6 @@
         }
         function showError() { if (errorBox) errorBox.hidden = false; }
         function hideError() { if (errorBox) errorBox.hidden = true; }
-
-        function updateTotalNote(total) {
-            if (!totalNote) return;
-            totalNote.textContent = total > 0
-                ? 'Semua artikel yang telah diterbitkan — ' + total + ' artikel.'
-                : 'Semua artikel yang telah diterbitkan.';
-        }
 
         function apply(sel, page, push) {
             seq += 1;

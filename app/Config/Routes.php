@@ -50,6 +50,8 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('settings/testimonials/reorder', 'Admin\Settings::testimonialReorder');
     $routes->get('settings/blog', 'Admin\Settings::blog');
     $routes->post('settings/blog', 'Admin\Settings::doBlog');
+    $routes->get('settings/contact', 'Admin\Settings::contact');
+    $routes->post('settings/contact', 'Admin\Settings::doContact');
 
     // Article taxonomy (categories and tags)
     $routes->get('categories', 'Admin\Categories::index');
