@@ -107,6 +107,14 @@ class Exceptions extends BaseConfig
             return new DatabaseExceptionHandler($this);
         }
 
+        // Security failures (403 — CSRF token missing/invalid/expired) must
+        // not leak exception names or stack traces. Render a plain
+        // "Artikel tidak tersedia" page instead, for HTML and API requests
+        // alike. The CSRF filter itself still validates and still returns 403.
+        if ($exception instanceof \CodeIgniter\Security\Exceptions\SecurityException) {
+            return new \App\Libraries\SecurityExceptionHandler($this);
+        }
+
         return new ExceptionHandler($this);
     }
 }

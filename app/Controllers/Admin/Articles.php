@@ -231,6 +231,8 @@ class Articles extends BaseController
             ? $this->articleModel->relatedPublished($id, $article['category_id'] ? (int) $article['category_id'] : null)
             : [];
 
+        $this->response->setHeader('Cache-Control', 'no-store');
+
         return view('portal/blog_detail', [
             'article'     => $article,
             'category'    => $category,
@@ -239,6 +241,110 @@ class Articles extends BaseController
             'identity'    => $identity,
             'menuItems'   => build_public_menu(true),
             'isPreview'   => true,
+        ]);
+    }
+
+    /**
+     * Return the CURRENT CSRF hash so client-side forms can stay fresh after
+     * a POST elsewhere rotated the token (CSRF regenerate = true). GET does
+     * not rotate the token, so this only exposes the current value — the same
+     * value already visible in this page's own markup, no security leak.
+     */
+    public function csrfRefresh()
+    {
+        return $this->response->setJSON($this->withCsrf(['ok' => true]));
+    }
+
+    /**
+     * Preview the article form's CURRENT unsaved content.
+     *
+     * The form is POSTed here (new tab) with tinymce content synced into the
+     * body textarea first. Nothing is written to the database: the posted
+     * fields are sanitized with the same rules as save() and rendered through
+     * the public detail view marked as an unsaved-admin preview. The payload
+     * lives only in the request, so previews are isolated per tab/article and
+     * can never go stale.
+     */
+    public function previewUnsaved()
+    {
+        $post = $this->request->getPost();
+
+        $title  = trim((string) ($post['title'] ?? ''));
+        $slug   = trim((string) ($post['slug'] ?? ''));
+        $slug   = ($slug === '') ? mb_url_title($title !== '' ? $title : 'artikel-tanpa-judul', '-', true) : mb_strtolower($slug);
+        $body   = (string) ($post['body'] ?? '');
+
+        $status  = in_array(($post['status'] ?? ''), ['draft', 'published'], true) ? $post['status'] : 'draft';
+        $layout  = (($post['detail_layout'] ?? '') === 'full') ? 'full' : 'sidebar';
+        $catId   = (int) ($post['category_id'] ?? 0);
+        if ($catId > 0 && ! $this->categoryModel->find($catId)) {
+            $catId = 0;
+        }
+
+        // Cover: library selection wins for preview; a freshly uploaded but
+        // unsaved file lives only on the client and cannot be rendered here.
+        $cover = '';
+        foreach (['cover_image', 'current_cover_image'] as $key) {
+            $candidate = trim((string) ($post[$key] ?? ''));
+            if ($candidate !== '') {
+                $cover = $candidate;
+                break;
+            }
+        }
+
+        $publishedAt = trim((string) ($post['published_at'] ?? ''));
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $publishedAt)) {
+            $publishedAt = date('Y-m-d');
+        }
+
+        // Same sanitization as save(): allowlist tags/attributes, strip
+        // scripts/handlers/unsafe URLs — identical rendering rules.
+        $article = [
+            'id'            => (int) ($post['id'] ?? 0),
+            'title'         => $title !== '' ? $title : 'Artikel tanpa judul',
+            'slug'          => $slug,
+            'excerpt'       => mb_substr(trim((string) ($post['excerpt'] ?? '')), 0, 500),
+            'body'          => $this->sanitizeHtml($body),
+            'cover_image'   => $cover !== '' ? $cover : null,
+            'cover_alt'     => trim((string) ($post['cover_alt'] ?? '')),
+            'category_id'   => $catId ?: null,
+            'detail_layout' => $layout,
+            'status'        => $status,
+            'published_at'  => $publishedAt,
+        ];
+
+        $settingModel = new SettingModel();
+        $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
+
+        $category = $catId ? $this->categoryModel->find($catId) : null;
+
+        $postedTags = $post['tags'] ?? [];
+        $tagIds     = [];
+        if (is_array($postedTags)) {
+            foreach ($postedTags as $tagId) {
+                $tagId = (int) $tagId;
+                if ($tagId > 0 && $this->tagModel->find($tagId)) {
+                    $tagIds[] = $tagId;
+                }
+            }
+        }
+        $tags = $tagIds ? $this->tagModel->whereIn('id', $tagIds)->findAll() : [];
+
+        $related = ($layout === 'sidebar')
+            ? $this->articleModel->relatedPublished($article['id'], $catId ?: null)
+            : [];
+
+        $this->response->setHeader('Cache-Control', 'no-store');
+
+        return view('portal/blog_detail', [
+            'article'     => $article,
+            'category'    => $category,
+            'tags'        => $tags,
+            'related'     => $related,
+            'identity'    => $identity,
+            'menuItems'   => build_public_menu(true),
+            'isPreview'   => true,
+            'isUnsaved'   => true,
         ]);
     }
 

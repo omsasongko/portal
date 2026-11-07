@@ -77,6 +77,8 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->get('articles/create', 'Admin\Articles::create');
     $routes->get('articles/edit/(:num)', 'Admin\Articles::edit/$1');
     $routes->get('articles/preview/(:num)', 'Admin\Articles::preview/$1');
+    $routes->post('articles/preview-unsaved', 'Admin\Articles::previewUnsaved');
+    $routes->get('articles/csrf-refresh', 'Admin\Articles::csrfRefresh');
     $routes->post('articles/save', 'Admin\Articles::save');
     $routes->post('articles/delete', 'Admin\Articles::delete');
     $routes->post('articles/upload-image', 'Admin\Articles::uploadImage');

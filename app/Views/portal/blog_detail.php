@@ -116,6 +116,7 @@
     <?php if (! empty($isPreview)): ?>
     <div class="demo-preview-banner alert alert-warning text-center mb-0 rounded-0">
         <strong>Pratinjau admin</strong> — artikel ini berstatus <em><?= $article['status'] === 'draft' ? 'Draf' : 'Terbit' ?></em> dan hanya terlihat oleh admin yang sedang masuk.
+        <?php if (! empty($isUnsaved)): ?><br><strong>Pratinjau perubahan belum disimpan</strong> — perubahan pada form belum masuk ke database. Tekan "Simpan" pada form untuk menyimpannya.<?php endif; ?>
     </div>
     <?php endif; ?>
 

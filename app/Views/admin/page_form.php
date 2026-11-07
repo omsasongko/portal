@@ -63,6 +63,11 @@
 
 <?php $this->section('scripts') ?>
 <script src="<?= base_url('assets/admin/vendor/tinymce/tinymce.min.js') ?>" referrerpolicy="origin"></script>
+<script src="<?= base_url('assets/admin/js/editor-controls.js') ?>?v=20261107-3"></script>
+<style>
+.tox.tox-tinymce.tox-fullscreen { z-index: 1100; }
+.tox.tox-tinymce-aux { z-index: 1200; }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-generate slug from title (only for new pages without an existing slug)
@@ -91,17 +96,25 @@ document.addEventListener('DOMContentLoaded', function() {
     tinymce.init({
         selector: '#content',
         height: 400,
+        resize: true,
         language: 'id',
         menubar: 'edit insert format table',
-        plugins: 'lists link image table code wordcount',
-        toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist | link image | table | code',
+        plugins: 'lists link image table code wordcount fullscreen',
+        toolbar: 'layarpenuh | undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist | link image | table | code',
         valid_elements: 'p[class],br,strong,b,em,i,u,s,sub,sup,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title|target|rel],img[src|alt|title|width|height],blockquote,pre,code,table[class],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],hr,div[class],span[class]',
         convert_urls: false,
         skin: currentTheme === 'dark' ? 'oxide-dark' : 'oxide',
         content_css: currentTheme === 'dark' ? 'dark' : 'default',
+        content_style: `
+            /* Match public page typography so spacing looks the same in the
+               editor as it does in preview/public rendering. */
+            body { font-size: 14px; line-height: 1.8; }
+            p { margin: 0 0 1rem; }
+        `,
         promotion: false,
         branding: false,
         license_key: 'gpl',
+        setup: portalEditorSetup,
     });
 });
 </script>

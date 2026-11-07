@@ -135,9 +135,7 @@
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><?= $article ? 'Simpan Perubahan' : 'Tambah Artikel' ?></button>
-                <?php if ($article): ?>
-                    <a href="<?= base_url('admin/articles/preview/' . (int) $article['id']) ?>" class="btn btn-info" target="_blank">Pratinjau</a>
-                <?php endif; ?>
+                <button type="button" class="btn btn-info" id="preview-unsaved" title="Pratinjau konten form saat ini (belum disimpan) di tab baru">Pratinjau</button>
                 <a href="<?= base_url('admin/articles') ?>" class="btn btn-secondary">Batal</a>
             </div>
         </form>
@@ -147,6 +145,11 @@
 
 <?php $this->section('scripts') ?>
 <script src="<?= base_url('assets/admin/vendor/tinymce/tinymce.min.js') ?>" referrerpolicy="origin"></script>
+<script src="<?= base_url('assets/admin/js/editor-controls.js') ?>?v=20261107-3"></script>
+<style>
+.tox.tox-tinymce.tox-fullscreen { z-index: 1100; }
+.tox.tox-tinymce-aux { z-index: 1200; }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-generate slug from title (only until the slug is manually edited)
@@ -186,18 +189,80 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ----- Preview of UNSAVED form content -----
+    // Posts the current form (with TinyMCE content synced into the textarea)
+    // to admin/articles/preview-unsaved in a NEW tab. The current tab never
+    // navigates, so unsaved form content, selection and cursor are preserved.
+    // form.submit() (not requestSubmit) is used deliberately: it skips HTML5
+    // validation and other submit handlers, so an incomplete form can still
+    // be previewed without saving anything.
+    const previewBtn = document.getElementById('preview-unsaved');
+    const form = previewBtn && previewBtn.closest('form');
+
+    async function fetchFreshCsrf() {
+        try {
+            const r = await fetch(baseUrl + 'admin/articles/csrf-refresh', { headers: { 'Accept': 'application/json' } });
+            if (!r.ok) return;
+            refreshCsrf(await r.json());
+        } catch (e) { /* keep current token; save behaves as before */ }
+    }
+
+    if (previewBtn && form) {
+        previewBtn.addEventListener('click', async function() {
+            if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
+                tinymce.triggerSave(); // sync editor content -> textarea
+            }
+            // Every POST rotates the CSRF token (regenerate = true), and the
+            // hidden field only learns the new value from the 2s timer below.
+            // A preview clicked inside that window posted a STALE token and
+            // got a 403 SecurityException. Fetch the current token right
+            // before submitting so back-to-back previews always carry a
+            // valid one (same protection the Save flow already has).
+            await fetchFreshCsrf();
+            const prevAction = form.action;
+            const prevTarget = form.target;
+            form.action = '<?= base_url('admin/articles/preview-unsaved') ?>';
+            form.target = '_blank';
+            form.submit();
+            setTimeout(function() {
+                form.action = prevAction;
+                form.target = prevTarget;
+            }, 0);
+            // Still refresh shortly after, so any OTHER form on the page
+            // (e.g. logout) also sees the token the preview rotated to.
+            setTimeout(fetchFreshCsrf, 2000);
+        });
+
+        // Deterministic refresh right before a real save: guarantees the
+        // posted token is current no matter what rotated it earlier. The
+        // editor content is synced FIRST: native form.submit() bypasses
+        // TinyMCE's own submit handler, so without triggerSave() the textarea
+        // could still hold stale content and silently revert recent edits.
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
+                tinymce.triggerSave();
+            }
+            await fetchFreshCsrf();
+            form.submit(); // native submit: bypasses this handler, no loop
+        });
+    }
+
     // Initialize TinyMCE with full image management + YouTube
     const currentTheme = document.documentElement.getAttribute('data-bs-theme');
     tinymce.init({
         selector: '#body',
         height: 480,
+        resize: true,
+        min_height: 320,
         language: 'id',
         menubar: 'edit insert format table',
-        plugins: 'lists link image table code wordcount',
+        plugins: 'lists link image table code wordcount fullscreen',
         toolbar: [
-            'undo redo | blocks | bold italic underline strikethrough',
+            'layarpenuh | undo redo | blocks | bold italic underline strikethrough',
             'alignleft aligncenter alignright | bullist numlist | link | table | code',
-            'uploadimage medialibrary | imgalignleft imgaligncenter imgalignright | imgresize25 imgresize50 imgresize75 imgresize100 | imgcrop | youtube'
+            'uploadimage medialibrary | imgalignleft imgaligncenter imgalignright | imgresize25 imgresize50 imgresize75 imgresize100 | imgcrop | youtube hapusvideo'
         ],
         valid_elements: 'p[class],br,strong,b,em,i,u,s,sub,sup,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title|target|rel],img[src|alt|title|width|height|style|class],blockquote,pre,code,table[class],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],hr,div[class|style],span[class],iframe[src|width|height|frameborder|allow|allowfullscreen|title|class|style]',
         convert_urls: false,
@@ -207,12 +272,18 @@ document.addEventListener('DOMContentLoaded', function() {
         branding: false,
         license_key: 'gpl',
         content_style: `
+            /* Match public article typography so spacing looks the same in
+               the editor as it does in preview/public rendering. */
+            body { font-size: 14px; line-height: 1.8; }
+            p { margin: 0 0 1rem; }
             img.img-align-left { display: block; margin: 10px auto 10px 0; }
             img.img-align-center { display: block; margin: 10px auto; }
             img.img-align-right { display: block; margin: 10px 0 10px auto; }
             img { max-width: 100%; height: auto; cursor: pointer; }
             .video-embed-wrapper { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 10px 0; }
-            .video-embed-wrapper iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+            .video-embed-wrapper { cursor: pointer; }
+            .video-embed-wrapper[data-mce-selected] { outline: 3px solid #2276d2; }
+            .video-embed-wrapper iframe { pointer-events: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
             .mce-img-controls { position: absolute; background: rgba(0,0,0,0.75); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; z-index: 10; display: flex; gap: 4px; }
             .mce-img-controls button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.5); border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 11px; }
             .mce-img-controls button:hover { background: rgba(255,255,255,0.2); }
@@ -220,6 +291,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // ----- Custom toolbar button: Unggah Gambar -----
         setup: function(editor) {
+            portalEditorSetup(editor);
+            portalVideoSetup(editor);
             editor.ui.registry.addButton('uploadimage', {
                 text: 'Unggah Gambar',
                 tooltip: 'Unggah gambar dari komputer',
@@ -379,6 +452,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 node.style.height = 'auto';
                 node.removeAttribute('width');
                 node.removeAttribute('height');
+                // TinyMCE keeps a data-mce-style snapshot of the style and its
+                // serializer restores THAT over the live style on output. A
+                // preset click only updated the live style, so the serializer
+                // kept re-emitting the EARLIER size (e.g. drag to 35%, then
+                // preset 50% => HTML still said 35%). Mirror the live style
+                // into the snapshot so the newest size survives serialization.
+                if (node.getAttribute('data-mce-style') !== null) {
+                    editor.dom.setAttrib(node, 'data-mce-style', node.getAttribute('style'));
+                }
                 editor.nodeChanged();
             }
 
@@ -420,8 +502,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     cropDialog.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
                     cropDialog.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;max-width:800px;width:90%;max-height:90vh;overflow-y:auto;">'
                         + '<h4 style="margin:0 0 10px;">Potong Gambar</h4>'
-                        + '<div id="crop-container" style="position:relative;display:inline-block;max-width:100%;margin-bottom:10px;user-select:none;">'
-                        + '<img id="crop-img" src="' + imgSrc + '" style="max-width:100%;display:block;" crossorigin="anonymous" />'
+                        + '<div id="crop-container" style="position:relative;display:inline-block;max-width:100%;max-height:calc(90vh - 180px);margin-bottom:10px;user-select:none;overflow:hidden;">'
+                        + '<img id="crop-img" src="' + imgSrc + '" style="max-width:100%;max-height:calc(90vh - 180px);width:auto;height:auto;display:block;object-fit:contain;" crossorigin="anonymous" />'
                         + '<div id="crop-selection" style="position:absolute;border:2px dashed #0d6efd;background:rgba(13,110,253,0.15);cursor:move;display:none;"></div>'
                         + '</div>'
                         + '<div style="margin-bottom:10px;font-size:13px;color:#666;" id="crop-info">Klik dan seret pada gambar untuk memilih area pemotongan.</div>'
@@ -590,6 +672,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             .then(function(result) {
                                 refreshCsrf(result.data);
                                 if (result.ok && result.data.html) {
+                                    // Keep an intentional blank line under the
+                                    // caret: insertContent would otherwise
+                                    // consume the empty paragraph the owner
+                                    // typed before inserting the video.
+                                    var anchor = editor.selection.getNode();
+                                    if (anchor && anchor.nodeName === 'P'
+                                        && !anchor.querySelector('img,iframe,table,ul,ol')
+                                        && anchor.textContent.replace(/\u00a0/g, ' ').trim() === '') {
+                                        anchor.innerHTML = '&nbsp;';
+                                        editor.selection.select(anchor);
+                                        editor.selection.collapse(false);
+                                    }
                                     editor.insertContent(result.data.html + '<p>&nbsp;</p>');
                                     api.close();
                                     editor.notificationManager.open({ text: 'Video YouTube berhasil disematkan.', type: 'success', timeout: 3000 });

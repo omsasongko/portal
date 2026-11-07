@@ -48,7 +48,7 @@ class Blog extends BaseController
         $article = $this->articleModel->findPublishedBySlug($slug);
 
         if (! $article) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Artikel tidak tersedia');
         }
 
         $categoryModel = new CategoryModel();

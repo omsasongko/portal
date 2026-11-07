@@ -1,7 +1,137 @@
 # Portal — Progress Log
 
 ## Last Updated
-2026-11-04
+2026-11-07
+
+### Sample articles seeded; database was reset externally (2026-11-06)
+- [x] **Important discovery:** `portal_db` was wiped and re-seeded externally between sessions — ALL owner articles (1, 2, 3, 10, 12), pages, article_tags, and older media rows are gone; `admins` table replaced by `admin_users` (10 migrations applied). Code/docs from earlier milestones are unaffected; only their DB references are gone. Nothing was deleted by us.
+- [x] Created 4 sample articles via a temporary idempotent spark command (`app/Commands/SeedSampleArticles.php`, untracked, safe to delete): uses the editor's exact persistence path (`ArticleModel::insert` + `syncTags` + shared `SanitizesHtml`). Published: id 1 `menata-meja-kerja-dalam-15-menit` (154 kata), id 2 `akhir-pekan-di-subang-jalan-pagi-dan-berburu-foto` (164 kata), id 3 `cara-membuat-cadangan-foto-keluarga` (159 kata) — all `2026-11-06`, category 3, tag 2 on 1 & 2. Draft: id 4 `catatan-uji-editor-gambar-dan-video-youtube` (161 kata) with media-library image (media #22) at 25% `img-align-center`, short caption, one deliberate `<p>&nbsp;</p>`, then the project's dQw4w9WgXcQ responsive embed.
+- [x] Verified: 3 published return 200 on `/blog/…` and appear on the homepage; draft is 404 public, 302 on unauthenticated saved-preview, visible in admin list/edit; re-running the command skips all four slugs (idempotent).
+
+### Inline image sizing: corner-handle drag normalized to % (2026-11-06 → 2026-11-07) — DONE
+- Investigation recap: sanitizer keeps img `style` (width/max-width/height allowed); preview and DB faithfully preserve whatever the editor serializes; proportions of the 25% preset match at every hop; public CSS has no width-forcing rules. Confirmed container mismatch (editor body ~778px at 888px viewport vs public column 696px) — percentages keep proportion, absolute sizes drift; that mismatch is by design and fine.
+
+**Root cause (measured with a real trusted-pointer drag):** TinyMCE corner-handle drag-resize leaves the image in absolute pixels (`width: 288px; height: 383px` on the live style AND a px `data-mce-style` snapshot). Pixels only match the editor column, so the same image takes a different share of the narrower public column: **37.0% in the editor → 41.4% in preview/DB-driven pages (+4.4pp)**. The drift is born at drag time; serialization, sanitizer, preview and DB pass it through unchanged.
+
+**Fix (uncommitted):**
+- [x] `public/assets/admin/js/editor-controls.js` — `portalEditorSetup` registers an `ObjectResized` handler: on the NEXT TICK (TinyMCE writes its final px styles after the last `ObjectResized` fires, so a synchronous handler was overwritten), convert the dragged width to a percentage of the editor body width (1 decimal, capped at 100%), set `height: auto` (aspect ratio preserved), remove `width`/`height` attributes, and sync the `data-mce-style` snapshot to the new style — the serializer prefers the snapshot over the live attribute, and without this sync the saved HTML silently reverted to px. Output format matches the resize presets exactly (`width: N%; max-width: 100%; height: auto`); alignment classes and `max-width: 100%` are untouched. Applies to article AND page editors (shared setup).
+- [x] `article_form.php` + `page_form.php`: `editor-controls.js` script tag bumped to `?v=20261107-3`.
+
+**Verified with a REAL trusted pointer drag (target 37%, draft article 4, image reset to the 25% preset format before the run):**
+- [x] Editor after drag: 288px / 778px = **37.0%**, aspect 0.751, `img-fluid img-align-center` kept; drag log captured trusted `handle-mousedown` + `ObjectResized` events.
+- [x] Serialized textarea output: `style="width: 37%; max-width: 100%; height: auto"` → 37.0% of the editor column.
+- [x] Unsaved preview (`POST preview-unsaved`, 696px public column): 258px = **37.0%** (pre-fix the identical drag measured 41.4%).
+- [x] Real save (requestSubmit → pre-save hook): DB body keeps `width: 37%; max-width: 100%; height: auto` with no width/height attributes; reopened editor: 288/778 = **37.0%**.
+- [x] Drift at every hop: **0.0pp** (tolerance 1pp).
+
+**Browser-harness notes for future drag runs (cost hours to learn):** the drag tool presses at coordinates computed BEFORE it re-scrolls the page, so lock page scroll first (`body{position:fixed; top:-scrollY}` — viewport positions are preserved and its internal scrollIntoView becomes a no-op; always detox a stale lock at the start of the next run); the TinyMCE content iframe is only ~245px tall (content scrolls internally) and the SW handle often sits at/below the iframe's bottom edge — scroll the iframe's INTERNAL content up (`doc.scrollTop += need`) until the handle is visible, then target a point ~3px above the iframe's bottom edge; drag markers must be `pointer-events:none` plus `role=button`+`aria-label` to let input pass through while staying visible to a11y snapshots.
+
+**Data hygiene:** draft article 4's original body was captured before testing and restored byte-identical afterwards (`body_len` 1939, MD5 `d201962891c7e7822a0d1cf359c719ab`), `status='draft'` re-verified, `published_at` reset to NULL (the save flow's date input defaults to today for drafts and had refilled it — restore included it).
+
+**Requires owner manual verification:**
+- [ ] One drag with a real mouse/trackpad on any article image to confirm the feel and the final percentage (the automated run used trusted CDP pointer input — real input events at programmed coordinates; a human drag is the last proof).
+- [ ] Visual check of a dragged image in light AND dark themes.
+
+### Article spacing consistency: editor ↔ preview ↔ public (2026-11-06)
+
+**Root cause (measured in a real browser, not assumed):**
+1. **TinyMCE serializer collapses blank lines.** A blank line the owner types (Enter-Enter) lives in the editor DOM as `<p><br></p>`; TinyMCE's serializer outputs it (and `<p></p>`) as an EMPTY `<p></p>`. On the public page an empty `<p>` renders with **0 px height** (margin-collapse eats it), while `<p>&nbsp;</p>` renders a real 25.32 px line — so every intentional blank line silently vanished in Preview/public while staying visible in the editor.
+2. **`insertContent` consumed the blank paragraph under the caret.** Inserting a video (block content) with the caret inside an empty `<p>` physically REPLACED that paragraph in the editor DOM — the blank line was deleted at insert time, before saving ever happened.
+3. **Editor typography diverged from public.** Editor body was 16 px/1.4 vs public `.article-body` 14 px/1.808 with `p { margin-bottom: 16px }` — even identical markup looked different. (The sanitizer was exonerated: `<p>&nbsp;</p>` passes through `sanitizeHtml()` unchanged.)
+
+**Fix (all uncommitted):**
+- [x] `public/assets/admin/js/editor-controls.js` — `portalEditorSetup` now registers a `p` **serializer node filter on `PreInit`** (inside `setup`, `editor.serializer` does not exist yet — the first attempt threw `TypeError … 'addNodeFilter'`; PreInit is the correct hook). In the OUTPUT HTML only: effectively-empty paragraphs (whitespace/nbsp text or `<br>`-only children) are filled with `\u00a0`; paragraphs carrying TinyMCE's own `data-mce-placeholder` are dropped from output instead, so editor filler never leaks. Detection walks the direct child chain (`node.firstChild`/`next`) — an earlier attempt used `node.walk(cb)` whose early-return contract emptied ALL paragraphs including text ones; caught in testing and replaced.
+- [x] `article_form.php` YouTube dialog `onSubmit` — before `editor.insertContent`, if `editor.selection.getNode()` is an empty `<p>` (no img/iframe/table/list, no real text), it is filled with `&nbsp;` and re-selected, so the blank line under the caret survives block insertion.
+- [x] `content_style` in **both** `article_form.php` and `page_form.php`: `body { font-size: 14px; line-height: 1.8 }` + `p { margin: 0 0 1rem }` to match public article typography exactly.
+- [x] **Data-loss bug found and fixed on the way:** the pre-save submit hook called native `form.submit()`, which BYPASSES TinyMCE's own form-submit sync — the textarea could still hold stale content and silently revert recent edits. The hook now runs `tinymce.triggerSave()` before the CSRF refresh + native submit.
+- [x] Both forms' `editor-controls.js` script tags got `?v=20261106` cache-busting (the browser was serving a stale cached copy during verification).
+
+**Verified with real browser interactions (authenticated, 2026-11-06):**
+- [x] Serialization matrix (article editor): text+1 blank → `<p>&nbsp;</p>`; text+2 blanks → two nbsp paragraphs; existing `<p>&nbsp;</p>` untouched; `<br>` inside text and Shift+Enter soft breaks preserved; `data-mce-placeholder` paragraphs dropped from output; paragraph with nested `<strong>` counted as content; live editor DOM never modified by the filter; zero console errors.
+- [x] Real YouTube dialog flow with the caret inside a blank paragraph (toolbar click → URL → Sematkan): dialog closes, success notification shows, DOM keeps `P(text) → P(&nbsp;) → video → P(&nbsp;)`, serialized output keeps the blank line before the video.
+- [x] End-to-end on a throwaway published article (`uji-spasi-20261106`): text → 1 blank → video → 2 blanks → text → image (50 %, centered) → 1 blank → video → 1 blank → text.
+  - Editor (iframe, after content_style): gaps **57 / 92 / 16 / 57 / 51 px**, typography 14 px / 25.2 px / 16 px margin.
+  - Unsaved preview (`POST preview-unsaved`): gaps **57 / 93 / 16 / 57 / 51 px**, identical typography, 5 nbsp paragraphs, no `data-mce-*`/`contenteditable` in the rendered body.
+  - Saved &amp; reopened: DB body has exactly five `<p>&nbsp;</p>`, wrapper `style` and image `style`/`class` intact, zero editor-only attributes.
+  - Public page: gaps **57 / 93 / 16 / 57 / 51 px**, same typography — visually identical to the editor; no horizontal overflow.
+  - One blank (57 px) vs two blanks (93 px) vs no blank (16 px) remain clearly distinguishable — no fixed video margin was used.
+- [x] Narrow/mobile simulation (375 px content column): identical gaps, video wrapper responsive (56.25 % padding-bottom trick), no horizontal overflow.
+- [x] Regression smoke on the fixture's edit page: reopen shows all 5 nbsp blanks intact; image align-center applies `img-align-center`; resize-25 % sets `width 25 %`; fullscreen toggles on/off; `Hapus Video` via the REAL selection flow (iframe `mousedown` → enabled button → click) removes only the selected embed and keeps surrounding blanks; serialized HTML stays free of `contenteditable`/`data-mce-*`.
+- [x] Real save exercised the full production path (`requestSubmit` → pre-save hook → `triggerSave()` → fresh CSRF → native submit) — article stored correctly.
+- [x] Pages editor (`page_form.php`): same serializer filter + typography verified (blank preserved, 14 px/25.2 px/16 px, zero console errors).
+- [x] Owner data untouched: article 10 (`uji-gambar-video`) DB content byte-identical to before (its historical collapsed `<p></p>` lines are owner data — NOT rewritten, per constraint); media #48 untouched; throwaway fixture deleted (articles row + `article_tags` check, zero leftovers).
+
+**Requires owner manual verification:**
+- [ ] Real keyboard Enter-Enter blank lines (synthetic keystrokes cannot reach the TinyMCE iframe from this harness; DOM/API-equivalent states were used instead — the serializer treats them identically, but a human keypress test is the final proof).
+- [ ] Visual comfort judgement of the new 57 px / 93 px rhythm in light AND dark themes (spacing is theme-independent, but the call is aesthetic).
+- [ ] Crop dialog (canvas flow untouched by this change; only code-level review — no browser run this session).
+- [ ] Existing owner articles still show collapsed blank lines (by design — old content is not rewritten); owner can re-type the blank lines in any article where they matter.
+
+### Unsaved-content article preview (2026-11-06)
+
+**Cause (confirmed by inspection):** the form's Preview button was a plain `GET admin/articles/preview/(:num)` link that rendered the article straight from the database — unsaved editor/form changes never reached the server, so Preview always showed the previously saved content until the article was saved.
+
+**Fix (uncommitted, preserves the YouTube deletion fix):**
+- [x] New `POST admin/articles/preview-unsaved` (`Articles::previewUnsaved()`, adminAuth + CSRF protected): renders the CURRENT form content through the public `blog_detail` view. Nothing is written — no insert/update, no status change, DB untouched.
+- [x] Same sanitization and rendering rules as saved articles: the posted body goes through the exact `sanitizeHtml()` used by `save()`; category/tags/related resolved the same way.
+- [x] Payload covers title, slug (auto-generated when blank), excerpt, body, cover selection (library radio / current cover), cover alt, status, published date, and detail layout (sidebar/full).
+- [x] Form Preview button now: `tinymce.triggerSave()` (editor → textarea sync) → submits the live form to the preview endpoint in a NEW tab → restores action/target immediately. `form.submit()` is used deliberately to skip HTML5 validation, so incomplete forms can still be previewed. The original tab never navigates — unsaved content, selection and cursor are preserved when preview opens or closes.
+- [x] Isolation & staleness: the preview payload lives only in the POST request (no server-side temp storage), so previews are isolated per tab/article by construction; both preview endpoints send `Cache-Control: no-store` (verified via curl) so no stale cached preview can appear.
+- [x] Banner label: preview pages show "Pratinjau admin" plus, for unsaved previews, "Pratinjau perubahan belum disimpan — perubahan pada form belum masuk ke database…". Saved-GET preview keeps only the original banner.
+- [x] CSRF chain preserved: because the app rotates the CSRF token on every POST (`regenerate = true`), a preview POST used to stale the form's token. Added `GET admin/articles/csrf-refresh` (returns the current hash; GET does not rotate) plus a pre-save submit hook that refreshes the token right before a real save — verified: save succeeds right after preview. A best-effort delayed refresh also updates the header Logout form after previews.
+- [x] Preview button is now available on the create form too (previously only on edit).
+- [x] Saved-article preview from the article list (`GET preview/(:num)`) unchanged and still working (verified: banner without the unsaved label, correct saved content).
+
+**Verified with real browser interactions (authenticated):**
+- [x] Existing article 10 with saved video A (`dQw4w9WgXcQ`): deleted A and inserted B via the real YouTube dialog without saving → Preview showed B, not A, with the unsaved banner; form tab stayed on `/admin/articles/edit/10` with content intact.
+- [x] Added a second video C (youtu.be URL) without saving → Preview showed both B and C.
+- [x] Removed video C without saving → Preview showed only B (C omitted).
+- [x] Database unchanged throughout: article 10 row still contains only video A; public `/blog/uji-gambar-video` still renders video A with `pointer-events: auto`.
+- [x] Unsaved text, cover-image selection (library radio), inline image addition and removal, and sidebar layout each reflected immediately in the next Preview.
+- [x] Save-and-reopen persistence verified on a throwaway article (created, previewed unsaved, saved — the save succeeded right after a preview, exercising the CSRF pre-save hook — reopened: title/text/video persisted; saved-GET preview correct). Fixture deleted afterwards; owner media untouched (media #48 uploaded today at 11:00 predates/parallels testing and belongs to the owner's manual checks — left as is).
+- [x] Security: POST `preview-unsaved` returns 403 without a valid CSRF token and 403 when not logged in; zero console errors during all tests.
+
+**Requires owner manual verification:**
+- [ ] Visual check of the unsaved-preview banner wording/placement on the real theme (light/dark).
+- [ ] Previewing a cover image freshly uploaded via the file input but NOT yet saved: the upload lives only on the client, so Preview falls back to the library selection/current cover; the new file appears after saving (known limitation, by design).
+- [ ] Owner's usual browser (tab behavior: each Preview opens a new tab; original form tab never navigates).
+
+The earlier YouTube selection/deletion + fullscreen/resize milestone (2026-11-05 section below) is untouched by this change.
+
+### YouTube selection/deletion + fullscreen/resize editor (2026-11-05)
+
+**Implementation (uncommitted):**
+- [x] New shared `public/assets/admin/js/editor-controls.js`: `window.portalEditorSetup` (fullscreen) + `window.portalVideoSetup` (video selection/deletion), wired into both `article_form.php` and `page_form.php`.
+- [x] `Hapus Video` toolbar button (article editor): active only while a `.video-embed-wrapper` is selected; removes the whole wrapper (iframe included) without touching surrounding text or other media; caret is placed in the adjacent paragraph (a new `<p>` is created if none usable — a following video wrapper is never used as the caret target).
+- [x] Wrapper selectable as one unit: parser filter sets `contenteditable="false"`/`data-mce-contenteditable="false"` on `.video-embed-wrapper` (applies to saved and newly inserted embeds, including the YouTube dialog path); serializer strips `contenteditable` again so saved HTML stays clean; `[data-mce-selected]` shows a blue outline.
+- [x] Iframe no longer traps editor clicks: `.video-embed-wrapper iframe { pointer-events: none; }` in `content_style` (editor only; playback unaffected on public pages where `pointer-events` stays `auto`).
+- [x] Delete/Backspace delete the selected embed; intercepted only when a wrapper is selected (no modifier keys), so normal text editing is untouched. Removal is wrapped in `editor.undoManager.transact()`.
+- [x] Fullscreen via bundled local TinyMCE `fullscreen` plugin — no paid plugins/external keys: `Layar Penuh` toolbar button on article and page editors whose label toggles to `Keluar Layar Penuh` (via `FullscreenStateChanged`).
+- [x] Default sizes preserved: article editor `height: 480` (+ `resize: true`, `min_height: 320`), page editor `height: 400` (+ `resize: true`) — vertical drag handle labelled "Ubah ukuran" in the status bar.
+- [x] Stacking fixed with `.tox.tox-tinymce.tox-fullscreen { z-index: 1100; }` and `.tox.tox-tinymce-aux { z-index: 1200; }` in both forms.
+- [x] Crop dialog viewport fix: crop image/container capped at `calc(90vh - 180px)` so `Terapkan`/`Batal` stay visible inside the viewport in fullscreen (previously the buttons were pushed below the fold on short screens).
+
+**Verified with real browser interactions (authenticated admin session, 2026-11-05):**
+- [x] Article editor loads with zero console errors; default height 480 px, `fullscreen` plugin local, both buttons present, resize handle present.
+- [x] Wrapper `contenteditable="false"`, iframe computed `pointer-events: none`; real mousedown on the wrapper selects it; `Hapus Video` disabled without selection, enabled with selection.
+- [x] Of two embeds: toolbar click removed only the selected embed, kept the other embed and all three paragraphs, caret landed in a `P`, serialized HTML free of `contenteditable`/`data-mce` attributes.
+- [x] Real `Delete` and real `Backspace` keypresses (browser-level, not synthetic events) each removed the selected embed, kept the other embed and all text, caret in a `P`.
+- [x] Undo restores the deleted embed; Redo removes it again (verified deterministically after content reset).
+- [x] Insertion through the real "YouTube" dialog (watch URL) works; dialog-inserted embed is also selectable (`contenteditable="false"` applied) and deletable via real `Delete`; Undo restores it.
+- [x] Existing saved embeds: created test article with 2 embeds (published), reopened in the editor, both selectable; removed one via `Hapus Video`, saved, reopened — removal persisted in DB (only the second embed remains, all paragraphs intact, no editor attributes).
+- [x] Public article page after deletion: removed video gone, remaining embed present, all paragraphs rendered, iframe `pointer-events: auto` (playback intact).
+- [x] Normal text editing unaffected: real Backspace/Delete on plain text work character-by-character while no embed is selected.
+- [x] Fullscreen (article + page editors): expands to the full viewport (covers it, z-index 1100 above sidebar 1038 and header 1034 — no overlap), toolbar visible, label toggles to `Keluar Layar Penuh`; unsaved content, selection, and caret position preserved on enter and exit; exit restores the exact default height (480/400).
+- [x] In fullscreen: YouTube dialog, "Pilih dari Pustaka" dialog (34 thumbnails), image insertion from library, resize 50%, align-center, and the crop dialog all usable and correctly stacked (aux z-index 1201 above the editor; crop overlay z-index 99999 above all).
+- [x] Real crop in fullscreen (drag selection + `Terapkan`): new cropped file created, image `src`/`data-mce-src` updated, success notification, editor stays in fullscreen; working on the fixed dialog (buttons in viewport).
+
+**Requires owner manual verification (not exercisable by automated tooling):**
+- [ ] Vertical resize by actually dragging the "Ubah ukuran" handle at the editor's bottom-right (handle exists and `resize: true`/`min_height: 320` are active; synthetic mouse/pointer events cannot drive TinyMCE's internal drag helper, so the drag gesture itself was not automated).
+- [ ] Visual comfort of the selection outline and fullscreen behavior on the owner's real screen size/dark-mode theme.
+- [ ] Actual YouTube playback after clicking through preview/public (iframe loads on the public page; playback itself requires internet + an embeddable video).
+- [ ] The drag interaction inside the crop dialog (selection rectangle) on a real pointer device — apply/cancel flow was verified programmatically.
+
+Test fixtures used for verification (test article + cropped media file) were removed afterwards; owner content untouched (5 articles incl. owner's own test draft, 3 pages, 3 tags, 1 category intact). No commit/push performed.
 
 ## Status
 Articles module (admin CRUD + public blog) implemented with a repeat-safe fitness demo, Blog layout settings, menu integration, and a self-hosted TinyMCE editor with full image management (upload, media-library selection, resize presets, alignment, visual cropping, animated GIF support) and YouTube video embedding. Database connection error handling added (HTTP 503 with clean Indonesian error page). Admin interface uses AdminLTE 4.10.1. Pages and Navigation Menu management implemented. All completed modules below are committed/pushed to `origin/main` (except AdminLTE migration, Pages/Navigation, Articles, image management, and error-handling changes which are uncommitted). Backend verified via curl; visual editor interactions require owner manual testing (see Verification section).
@@ -510,21 +640,47 @@ Articles module (admin CRUD + public blog) implemented with a repeat-safe fitnes
 - [ ] Public page mobile viewport layout (page-content-wrapper responsive CSS verified by inspection but not viewport-tested)
 - [ ] `/blog` listing + article detail mobile viewport rendering (responsive Bootstrap grid by inspection; not viewport-tested)
 
-## Handoff for Tomorrow (2026-11-05)
+## Handoff (updated 2026-11-06)
 
-**Current milestone just completed:** Article editor image management + YouTube embedding fixes are owner-accepted and ready on `main`. This includes the CSRF token chain fix for sequential AJAX operations, the TinyMCE crop src persistence fix, the sanitizer `Undefined array key 3` fix, and transaction-wrapped article saves.
+**Committed milestone (on `main`, pushed):** Article editor image management + YouTube embedding fixes are owner-accepted — CSRF token chain fix for sequential AJAX operations, TinyMCE crop src persistence fix, sanitizer `Undefined array key 3` fix, and transaction-wrapped article saves.
+
+**New milestone implemented & verified, NOT yet committed (2026-11-05/06):** YouTube embed selection/deletion (`Hapus Video`, Delete/Backspace, Undo/Redo) + fullscreen (`Layar Penuh`/`Keluar Layar Penuh`) + vertical resize on both article and page editors, plus crop-dialog viewport fix. See the 2026-11-05 section at the top for implementation details, real browser verification results, and the outstanding owner checks (drag-resize gesture, crop drag on a real pointer, playback, visual comfort). Changes: `PROGRESS.md`, `app/Views/admin/article_form.php`, `app/Views/admin/page_form.php`, and new untracked `public/assets/admin/js/editor-controls.js`. Commit/push await owner instruction.
 
 **Remaining requirements before the next feature:**
-- Owner already confirmed manual checks pass for upload, library selection, resize, alignment, crop, YouTube embed, and save/reopen/public rendering.
-- Untested items remain listed under **Requires owner manual testing** and **Unverified** above (e.g., upload/network-error path, animated GIF crop rejection, mobile viewport, prefers-reduced-motion). No new code is needed unless the owner reports issues.
-- Existing data is intact (3 pages, 7 menu items, 4 articles, 1 category, 3 tags). The test article used during verification was cleaned up.
+- Owner manual verification of the new editor features (see "Requires owner manual verification" above).
+- Older open items remain listed under **Requires owner manual testing** and **Unverified** (upload/network-error path, animated GIF crop rejection, mobile viewport, prefers-reduced-motion). No new code is needed unless the owner reports issues.
+- Data intact (3 pages, 7 menu items, 5 articles, 1 category, 3 tags). Fixtures created during the editor verification (test article id 13, crop media id 47) were removed; all other articles/media — including the owner's own draft test article id 12 — were left untouched.
 
-**Next pending task (do not start now):** Implement the standalone media library management screen at `/admin/media` — list uploaded media, allow delete (with guard against use as article cover or inline image), preserve any media referenced by existing articles/pages/portfolio/testimonials. This is the first item under **Next Milestone (Suggested)**.
+**Next pending task (do not start until asked):** Implement the standalone media library management screen at `/admin/media` — list uploaded media, allow delete (with guard against use as article cover or inline image), preserve any media referenced by existing articles/pages/portfolio/testimonials. This is the first item under **Next Milestone (Suggested)**.
+
+## 2026-11-07 — Editor preview 403 fix + preset resize sync (uncommitted)
+
+**Issue 1 — CSRF 403 on `/admin/articles/preview-unsaved`:** the Pratinjau button posted the
+hidden `csrf_field()` token, which the 2s `fetchFreshCsrf` timer only refreshed AFTER a preview
+POST rotated it. A second preview inside that window sent a stale token → SecurityException 403
+stack-trace page (dev throws because `Config/Security.php::$redirect` is production-only).
+Fixes: article_form Pratinjau handler now `await fetchFreshCsrf()` before submit; new clean
+`error_403.php` view ("Artikel tidak tersedia", no trace); new `App\Libraries\SecurityExceptionHandler`
+routed from `Config/Exceptions::handler()` so invalid-token POSTs return clean 403 HTML or
+`{"error": "Artikel tidak tersedia"}` JSON without leaking exception details; `Blog::show()` throws
+404 with the same message (drafts invisible publicly, verified 404 + zero draft content via curl).
+Verified: Pratinjau #1 + immediate #2 → both 200; Pratinjau → immediate Save Draft → success flash.
+
+**Issue 2 — preset resize lost the latest width:** `setImgResize()` set the live `style` but not
+TinyMCE's `data-mce-style` snapshot, which the serializer prefers on output. Drag→35% then preset
+50% reproduced it: editor showed 50%, submitted HTML + preview stayed 35%. Fix: mirror live style
+into `data-mce-style` before `nodeChanged()` in `article_form.php`. Measured (editor body 778px,
+unsaved preview column 696px): drag 25→50% → editor 389/778 (50.0%), HTML `width: 50%`, preview
+348/696 (50.0%); drag 50→35% → 272/778, HTML 35%, preview 244/696 (35.1%); preset 50% after drag →
+389/778, HTML 50%, preview 348/696 — all match. Saved chain on temp article: DB `width: 50%`,
+editor reopen 50.0% (aspect 0.751, align center kept), eye-button preview 348/696 (50.0%).
+
+**Cleanup:** temp article id 5 (`temp-uji-resize-csrf`) deleted; articles 1–4 intact; article 4
+draft + published_at NULL. Note: article 4's body was last modified 2026-11-06 23:56 by the
+previous session's own save test (blank-line work) — today's session never wrote to it.
 
 **Notes for the next session:**
-- All current changes are on `main` and will be pushed after this commit.
-- No credentials, `.env`, logs, caches, DB dumps, runtime uploads, or temp files are included in the commit.
-- If the push is rejected, do not force-push; report the conflict and ask the owner how to proceed.
+- Uncommitted work now spans TWO milestones: the 2026-11-05 editor usability milestone (YouTube deletion + fullscreen/resize) and the 2026-11-06 unsaved-preview milestone. Commit only after owner acceptance of both, and never force-push.
 
 ## Next Milestone (Suggested)
 - [ ] Media library management screen (standalone `/admin/media` list with delete — media rows are currently created by uploads and the picker, but there is no management UI)

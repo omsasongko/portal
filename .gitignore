@@ -22,6 +22,9 @@ yarn.lock
 # User uploaded media managed by CMS
 /public/assets/portal/uploads/media/*
 
+# Database backups (timestamped portal_db dumps only)
+/bc_config/
+
 # Tests
 /phpunit.xml
 .phpunit.result.cache
