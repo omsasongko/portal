@@ -182,10 +182,10 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-striped table-sm mb-0">
-                <thead><tr><th>Waktu (WIB)</th><th>Halaman</th><th>Tipe</th><th>IP</th><th>Browser</th><th>OS</th><th>Perangkat</th><th>Bot</th></tr></thead>
+                <thead><tr><th>Waktu (WIB)</th><th>Halaman</th><th>Tipe</th><th>IP</th><th>Lokasi (Perkiraan)</th><th>Browser</th><th>OS</th><th>Perangkat</th><th>Bot</th></tr></thead>
                 <tbody>
                 <?php if (empty($recentVisits)): ?>
-                    <tr><td colspan="8" class="text-center text-muted py-3">Belum ada data</td></tr>
+                    <tr><td colspan="9" class="text-center text-muted py-3">Belum ada data</td></tr>
                 <?php else: ?>
                     <?php foreach ($recentVisits as $row): ?>
                     <tr>
@@ -198,6 +198,15 @@
                             $rtColor = $rtColors[$row['page_type']] ?? 'secondary';
                         ?><span class="badge text-bg-<?= $rtColor ?>"><?= esc($rtLabel) ?></span></td>
                         <td><code><?= esc($row['ip_address']) ?></code></td>
+                        <td class="text-nowrap"><?php
+                            $loc = \App\Libraries\GeoIpLookup::formatLocation([
+                                'country'    => $row['country'] ?? '',
+                                'region'     => $row['region'] ?? '',
+                                'city'       => $row['city'] ?? '',
+                                'is_private' => ($row['country'] === 'Lokal/Jaringan Privat'),
+                            ]);
+                            echo esc($loc);
+                        ?></td>
                         <td><?= esc($row['browser']) ?></td>
                         <td><?= esc($row['os']) ?></td>
                         <td><?= esc($row['device_type']) ?></td>
@@ -217,6 +226,12 @@
     <strong>Catatan Privasi:</strong> Data analitik mencatat alamat IP dan informasi browser pengunjung untuk pemantauan trafik dan keamanan dasar.
     Data ini sebaiknya disimpan hanya selama diperlukan. Gunakan perintah CLI <code>php spark analytics:purge --days=90</code> untuk menghapus data lama secara berkala.
     Data tidak dikirim ke layanan eksternal.
+</div>
+<div class="alert alert-warning small">
+    <i class="bi bi-geo-alt me-1"></i>
+    <strong>Catatan Lokasi:</strong> Lokasi pengunjung bersifat <strong>perkiraan</strong> berdasarkan alamat IP dan database lokal (DB-IP Lite).
+    Hasil bisa tidak akurat terutama saat pengunjung menggunakan VPN, jaringan seluler, proxy korporat, atau internet satelit.
+    Lokasi tidak mewakili alamat rumah atau posisi GPS pengunjung. Data IP tidak dikirim ke layanan geolokasi eksternal.
 </div>
 
 <?php $this->endSection() ?>

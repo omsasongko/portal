@@ -55,6 +55,9 @@ class VisitorTracker
 
         $ip = $request->getIPAddress();
 
+        // Approximate geolocation via local MMDB database.
+        $geo = GeoIpLookup::lookup($ip);
+
         $model = new PageVisitModel();
         $model->insert([
             'page_type'  => $pageType,
@@ -66,6 +69,9 @@ class VisitorTracker
             'os'         => $parsed['os'],
             'device_type'=> $parsed['device_type'],
             'is_bot'     => $isBot,
+            'country'    => mb_substr($geo['country'], 0, 100) ?: null,
+            'region'     => mb_substr($geo['region'], 0, 100) ?: null,
+            'city'       => mb_substr($geo['city'], 0, 100) ?: null,
         ]);
     }
 

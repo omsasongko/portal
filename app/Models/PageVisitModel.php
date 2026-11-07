@@ -13,6 +13,7 @@ class PageVisitModel extends Model
         'page_type', 'page_id', 'page_path',
         'ip_address', 'user_agent',
         'browser', 'os', 'device_type', 'is_bot',
+        'country', 'region', 'city',
     ];
     protected $useTimestamps = true;
     protected $dateFormat    = 'datetime';
@@ -141,13 +142,13 @@ class PageVisitModel extends Model
      * Recent visits (includes bot flag) newest first.
      * The created_at value is returned converted to WIB for display.
      *
-     * @return array<array{id:int, page_type:string, page_path:string, ip_address:string, browser:string, os:string, device_type:string, is_bot:int, created_at:string}>
+     * @return array<array{id:int, page_type:string, page_path:string, ip_address:string, browser:string, os:string, device_type:string, is_bot:int, country:?string, region:?string, city:?string, created_at:string}>
      */
     public function recentVisits(string $from, string $to, int $limit = 50): array
     {
         [$utcStart, $utcEnd] = $this->wibRangeToUtc($from, $to);
 
-        return $this->select("id, page_type, page_path, ip_address, browser, os, device_type, is_bot, CONVERT_TZ(created_at, '" . self::TZ_STORED . "', '" . self::TZ_DISPLAY . "') AS created_at")
+        return $this->select("id, page_type, page_path, ip_address, browser, os, device_type, is_bot, country, region, city, CONVERT_TZ(created_at, '" . self::TZ_STORED . "', '" . self::TZ_DISPLAY . "') AS created_at")
             ->where('created_at >=', $utcStart)
             ->where('created_at <=', $utcEnd)
             ->orderBy('created_at', 'DESC')
