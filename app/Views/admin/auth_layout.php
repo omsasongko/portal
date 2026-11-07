@@ -4,7 +4,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= esc($title ?? 'Login') ?> | Portal Admin</title>
+    <title><?= esc($title ?? 'Login') ?> | <?= esc(($identity['site_name'] ?? '') ?: 'Portal Admin') ?></title>
+
+    <link rel="icon" href="<?= base_url($identity['favicon'] ?? 'assets/portal/images/favicon.ico') ?>?v=2026110707" type="image/x-icon">
+    <link rel="shortcut icon" href="<?= base_url($identity['favicon'] ?? 'assets/portal/images/favicon.ico') ?>?v=2026110707" type="image/x-icon">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.3.0/index.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.16.0/styles/overlayscrollbars.min.css">
@@ -24,7 +27,13 @@
 <body class="login-page bg-body-secondary">
     <div class="login-box">
         <div class="login-logo">
-            <a href="<?= base_url('admin') ?>"><b>Portal</b> Admin</a>
+            <a href="<?= base_url('admin') ?>">
+                <?php if (! empty($identity['logo'])): ?>
+                    <img src="<?= base_url($identity['logo']) ?>?v=2026110707" alt="<?= esc(($identity['site_name'] ?? '') ?: 'Portal Admin') ?>" style="max-height: 48px; width: auto;">
+                <?php else: ?>
+                    <b><?= esc(($identity['site_name'] ?? '') ?: 'Portal') ?></b> Admin
+                <?php endif; ?>
+            </a>
         </div>
 
         <div class="card">

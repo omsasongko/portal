@@ -23,8 +23,12 @@ class Auth extends BaseController
             return redirect()->to('/admin');
         }
 
+        $settingModel = new \App\Models\SettingModel();
+        $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
+
         return view('admin/login', [
-            'title' => 'Masuk Admin',
+            'title'    => 'Masuk Admin',
+            'identity' => $identity,
         ]);
     }
 
@@ -92,8 +96,12 @@ class Auth extends BaseController
             return redirect()->to('/admin/login');
         }
 
+        $settingModel = new \App\Models\SettingModel();
+        $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
+
         return view('admin/change_password', [
-            'title' => 'Ubah Kata Sandi',
+            'title'    => 'Ubah Kata Sandi',
+            'identity' => $identity,
         ]);
     }
 

@@ -21,6 +21,7 @@ $routes->post('admin/logout', 'Admin\Auth::logout');
 // Protected admin routes
 $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $routes) {
     $routes->get('/', 'Admin\Dashboard::index');
+    $routes->get('analytics', 'Admin\Analytics::index');
     $routes->get('change-password', 'Admin\Auth::changePasswordForm');
     $routes->post('change-password', 'Admin\Auth::doChangePassword');
 

@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Controllers\Admin\Traits\SanitizesHtml;
 use App\Models\PageModel;
+use App\Models\SettingModel;
 
 class Pages extends BaseController
 {
@@ -15,6 +16,12 @@ class Pages extends BaseController
     public function __construct()
     {
         $this->pageModel = new PageModel();
+    }
+
+    private function loadIdentity(): array
+    {
+        $settingModel = new SettingModel();
+        return $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
     }
 
     public function index()
@@ -28,17 +35,19 @@ class Pages extends BaseController
         }
 
         return view('admin/pages', [
-            'title' => 'Halaman',
-            'pages' => $pages,
-            'edit'  => $edit,
+            'title'    => 'Halaman',
+            'pages'    => $pages,
+            'edit'     => $edit,
+            'identity' => $this->loadIdentity(),
         ]);
     }
 
     public function create()
     {
         return view('admin/page_form', [
-            'title' => 'Tambah Halaman',
-            'page'  => null,
+            'title'    => 'Tambah Halaman',
+            'page'     => null,
+            'identity' => $this->loadIdentity(),
         ]);
     }
 
@@ -50,8 +59,9 @@ class Pages extends BaseController
         }
 
         return view('admin/page_form', [
-            'title' => 'Edit Halaman',
-            'page'  => $page,
+            'title'    => 'Edit Halaman',
+            'page'     => $page,
+            'identity' => $this->loadIdentity(),
         ]);
     }
 

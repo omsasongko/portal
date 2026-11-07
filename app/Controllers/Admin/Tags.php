@@ -4,6 +4,7 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
 use App\Models\TagModel;
+use App\Models\SettingModel;
 
 class Tags extends BaseController
 {
@@ -13,6 +14,12 @@ class Tags extends BaseController
     {
         helper('url');
         $this->tagModel = new TagModel();
+    }
+
+    private function loadIdentity(): array
+    {
+        $settingModel = new SettingModel();
+        return $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
     }
 
     public function index()
@@ -34,9 +41,10 @@ class Tags extends BaseController
         }
 
         return view('admin/tags', [
-            'title' => 'Tag Artikel',
-            'tags'  => $tags,
-            'edit'  => $edit,
+            'title'    => 'Tag Artikel',
+            'tags'     => $tags,
+            'edit'     => $edit,
+            'identity' => $this->loadIdentity(),
         ]);
     }
 

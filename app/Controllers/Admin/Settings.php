@@ -48,11 +48,13 @@ class Settings extends BaseController
     {
         $settings = $this->settingModel->getGroup('site_identity')
             + $this->settingModel->getGroup('global_appearance');
+        $identity = $settings;
 
         return view('admin/settings_identity', [
             'title'    => 'Pengaturan Identitas Situs',
             'settings' => $settings,
             'media'    => $this->mediaModel->findAll(),
+            'identity' => $identity,
         ]);
     }
 
@@ -106,11 +108,14 @@ class Settings extends BaseController
     {
         $section = $this->sectionModel->findSection('hero');
         $content = $section ? json_decode($section['content'], true) : [];
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
 
         return view('admin/settings_hero', [
-            'title'   => 'Pengaturan Hero',
-            'hero'    => $content,
-            'media'   => $this->mediaModel->findAll(),
+            'title'    => 'Pengaturan Hero',
+            'hero'     => $content,
+            'media'    => $this->mediaModel->findAll(),
+            'identity' => $identity,
         ]);
     }
 
@@ -181,11 +186,14 @@ class Settings extends BaseController
     {
         $section = $this->sectionModel->findSection('about');
         $content = $section ? json_decode($section['content'], true) : [];
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
 
         return view('admin/settings_about', [
-            'title'   => 'Pengaturan About',
-            'about'   => $content,
-            'media'   => $this->mediaModel->findAll(),
+            'title'    => 'Pengaturan About',
+            'about'    => $content,
+            'media'    => $this->mediaModel->findAll(),
+            'identity' => $identity,
         ]);
     }
 
@@ -275,6 +283,9 @@ class Settings extends BaseController
             }
         }
 
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
+
         return view('admin/settings_services', [
             'title'           => 'Pengaturan Layanan',
             'services'        => $content,
@@ -282,6 +293,7 @@ class Settings extends BaseController
             'icons'           => $this->serviceIcons,
             'edit'            => $edit,
             'sectionEnabled'  => $section ? (bool) $section['is_enabled'] : true,
+            'identity'        => $identity,
         ]);
     }
 
@@ -503,6 +515,9 @@ class Settings extends BaseController
             }
         }
 
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
+
         return view('admin/settings_portfolio', [
             'title'           => 'Pengaturan Portofolio',
             'portfolio'       => $content,
@@ -512,6 +527,7 @@ class Settings extends BaseController
             'sectionEnabled'  => $section ? (bool) $section['is_enabled'] : true,
             'editItem'        => $editItem,
             'editCategory'    => $editCategory,
+            'identity'        => $identity,
         ]);
     }
 
@@ -816,6 +832,9 @@ class Settings extends BaseController
             }
         }
 
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
+
         return view('admin/settings_testimonials', [
             'title'          => 'Pengaturan Testimoni',
             'testimonials'   => $content,
@@ -823,6 +842,7 @@ class Settings extends BaseController
             'media'          => $this->mediaModel->findAll(),
             'edit'           => $edit,
             'sectionEnabled' => $section ? (bool) $section['is_enabled'] : true,
+            'identity'       => $identity,
         ]);
     }
 
@@ -1001,6 +1021,8 @@ class Settings extends BaseController
     {
         $section = $this->sectionModel->findSection('blog');
         $content = $section ? json_decode($section['content'], true) : [];
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
 
         $articleModel = new \App\Models\ArticleModel();
         $publishedCount = $articleModel->where('status', 'published')->countAllResults();
@@ -1010,6 +1032,7 @@ class Settings extends BaseController
             'blog'           => $content,
             'sectionEnabled' => $section ? (bool) $section['is_enabled'] : true,
             'publishedCount' => $publishedCount,
+            'identity'       => $identity,
         ]);
     }
 
@@ -1078,10 +1101,14 @@ class Settings extends BaseController
             }
         }
 
+        $identity = $this->settingModel->getGroup('site_identity')
+            + $this->settingModel->getGroup('global_appearance');
+
         return view('admin/settings_contact', [
             'title'          => 'Pengaturan Contact',
             'contact'        => $content,
             'sectionEnabled' => $section ? (bool) $section['is_enabled'] : true,
+            'identity'       => $identity,
         ]);
     }
 

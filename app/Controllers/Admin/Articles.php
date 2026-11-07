@@ -46,17 +46,23 @@ class Articles extends BaseController
 
         $categories = $this->categoryModel->findAll();
         $catNames   = array_column($categories, 'name', 'id');
+        $settingModel = new SettingModel();
+        $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
 
         return view('admin/articles', [
             'title'              => 'Artikel',
             'articles'           => $articles,
             'catNames'           => $catNames,
             'articleCategoryIds' => $this->articleModel->categoryIdsGroupedByArticle(),
+            'identity'           => $identity,
         ]);
     }
 
     public function create()
     {
+        $settingModel = new SettingModel();
+        $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
+
         return view('admin/article_form', [
             'title'    => 'Tambah Artikel',
             'article'  => null,
@@ -65,6 +71,7 @@ class Articles extends BaseController
             'categories' => $this->categoryModel->orderBy('name', 'ASC')->findAll(),
             'categoryIds' => [],
             'tags'     => $this->tagModel->orderBy('name', 'ASC')->findAll(),
+            'identity' => $identity,
         ]);
     }
 
@@ -75,6 +82,9 @@ class Articles extends BaseController
             return redirect()->to(base_url('admin/articles'))->with('error', 'Artikel tidak ditemukan.');
         }
 
+        $settingModel = new SettingModel();
+        $identity     = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
+
         return view('admin/article_form', [
             'title'      => 'Edit Artikel',
             'article'    => $article,
@@ -83,6 +93,7 @@ class Articles extends BaseController
             'categories' => $this->categoryModel->orderBy('name', 'ASC')->findAll(),
             'categoryIds' => $this->articleModel->categoryIdsForArticle($id),
             'tags'       => $this->tagModel->orderBy('name', 'ASC')->findAll(),
+            'identity'   => $identity,
         ]);
     }
 

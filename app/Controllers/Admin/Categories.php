@@ -4,6 +4,7 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
 use App\Models\CategoryModel;
+use App\Models\SettingModel;
 
 class Categories extends BaseController
 {
@@ -13,6 +14,12 @@ class Categories extends BaseController
     {
         helper('url');
         $this->categoryModel = new CategoryModel();
+    }
+
+    private function loadIdentity(): array
+    {
+        $settingModel = new SettingModel();
+        return $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
     }
 
     public function index()
@@ -37,6 +44,7 @@ class Categories extends BaseController
             'title'      => 'Kategori Artikel',
             'categories' => $categories,
             'edit'       => $edit,
+            'identity'   => $this->loadIdentity(),
         ]);
     }
 

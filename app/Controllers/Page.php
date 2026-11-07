@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\PageModel;
 use App\Models\SettingModel;
+use App\Libraries\VisitorTracker;
 
 class Page extends BaseController
 {
@@ -23,6 +24,8 @@ class Page extends BaseController
 
         // Homepage-qualified section links (/#anchor) on standalone pages.
         $menuItems = build_public_menu(true);
+
+        VisitorTracker::record('page', (int) $page['id'], '/pages/' . $slug);
 
         return view('portal/page', [
             'page'      => $page,

@@ -7,6 +7,7 @@ use App\Models\CategoryModel;
 use App\Models\HomepageSectionModel;
 use App\Models\TagModel;
 use App\Models\SettingModel;
+use App\Libraries\VisitorTracker;
 
 /**
  * Public blog listing.
@@ -129,6 +130,8 @@ class Blog extends BaseController
         $related = ($article['detail_layout'] === 'sidebar')
             ? $this->articleModel->relatedPublished((int) $article['id'], $categoryIds)
             : [];
+
+        VisitorTracker::record('article', (int) $article['id'], '/blog/' . $slug);
 
         return view('portal/blog_detail', [
             'article'    => $article,

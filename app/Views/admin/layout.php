@@ -4,7 +4,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= esc($title ?? 'Admin') ?> | Portal Admin</title>
+    <title><?= esc($title ?? 'Admin') ?> | <?= esc(($identity['site_name'] ?? '') ?: 'Portal Admin') ?></title>
+
+    <link rel="icon" href="<?= base_url($identity['favicon'] ?? 'assets/portal/images/favicon.ico') ?>?v=2026110707" type="image/x-icon">
+    <link rel="shortcut icon" href="<?= base_url($identity['favicon'] ?? 'assets/portal/images/favicon.ico') ?>?v=2026110707" type="image/x-icon">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.3.0/index.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.16.0/styles/overlayscrollbars.min.css">
@@ -62,8 +65,8 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
         <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
             <div class="sidebar-brand">
                 <a href="<?= base_url('admin') ?>" class="brand-link">
-                    <img src="<?= base_url('assets/admin/img/AdminLTELogo.png') ?>" alt="Portal Admin" class="brand-image opacity-75 shadow">
-                    <span class="brand-text fw-light">Portal Admin</span>
+                    <img src="<?= base_url($identity['favicon'] ?? 'assets/portal/images/favicon.ico') ?>?v=2026110707" alt="<?= esc(($identity['site_name'] ?? '') ?: 'Portal Admin') ?>" class="brand-image opacity-75 shadow">
+                    <span class="brand-text fw-light"><?= esc(($identity['site_name'] ?? '') ?: 'Portal Admin') ?></span>
                 </a>
             </div>
 
@@ -177,6 +180,13 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                             </a>
                         </li>
 
+                        <li class="nav-item">
+                            <a href="<?= base_url('admin/analytics') ?>" class="nav-link <?= $segment2 === 'analytics' ? 'active' : '' ?>">
+                                <i class="nav-icon bi bi-bar-chart"></i>
+                                <p>Analitik</p>
+                            </a>
+                        </li>
+
                         <li class="nav-header">-</li>
 
                         <li class="nav-item">
@@ -230,8 +240,8 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
         </main>
 
         <footer class="app-footer">
-            <div class="float-end d-none d-sm-inline">AdminLTE 4</div>
-            <strong>Portal CMS</strong>
+            <div class="float-end d-none d-sm-inline"><?= esc($identity['site_name'] ?? 'Portal Admin') ?></div>
+            <strong><?= esc($identity['site_name'] ?? 'Portal Admin') ?></strong>
         </footer>
 
     </div>

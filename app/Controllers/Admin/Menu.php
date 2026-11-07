@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\MenuItemModel;
 use App\Models\PageModel;
 use App\Models\HomepageSectionModel;
+use App\Models\SettingModel;
 
 class Menu extends BaseController
 {
@@ -20,6 +21,12 @@ class Menu extends BaseController
         $this->menuModel    = new MenuItemModel();
         $this->pageModel    = new PageModel();
         $this->sectionModel = new HomepageSectionModel();
+    }
+
+    private function loadIdentity(): array
+    {
+        $settingModel = new SettingModel();
+        return $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
     }
 
     public function index()
@@ -38,6 +45,7 @@ class Menu extends BaseController
             'edit'     => $edit,
             'sections' => $this->knownSections,
             'pages'    => $this->pageModel->orderBy('title', 'ASC')->findAll(),
+            'identity' => $this->loadIdentity(),
         ]);
     }
 

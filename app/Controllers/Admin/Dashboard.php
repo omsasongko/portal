@@ -16,6 +16,7 @@ class Dashboard extends BaseController
     public function index()
     {
         $settingModel  = new SettingModel();
+        $identity      = $settingModel->getGroup('site_identity') + $settingModel->getGroup('global_appearance');
         $mediaModel    = new MediaModel();
         $sectionModel  = new HomepageSectionModel();
         $categoryModel = new CategoryModel();
@@ -27,6 +28,7 @@ class Dashboard extends BaseController
 
         return view('admin/dashboard', [
             'title'                => 'Dasbor',
+            'identity'             => $identity,
             'settingsCount'        => $settingModel->countAll(),
             'heroCount'            => $enabledSectionsCount,
             'mediaCount'           => $mediaModel->countAll(),

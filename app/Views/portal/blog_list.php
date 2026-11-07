@@ -325,7 +325,6 @@
                 if (my !== seq) return; // a newer request owns the UI now
                 region.innerHTML = data.html;
                 if (push) window.history.pushState({ blogFilters: true }, '', data.canonicalUrl);
-                updateTotalNote(data.total);
                 hideError();
             })
             .catch(function (err) {
