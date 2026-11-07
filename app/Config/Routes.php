@@ -13,6 +13,7 @@ $routes->get('blog', 'Blog::index');
 // Must stay BEFORE blog/(:segment) so "results" is not read as an article slug.
 $routes->get('blog/results', 'Blog::results');
 $routes->get('blog/(:segment)', 'Blog::show/$1');
+$routes->post('contact/submit', 'Contact::submit');
 
 // Admin auth routes
 $routes->get('admin/login', 'Admin\Auth::loginForm');
@@ -91,4 +92,10 @@ $routes->group('admin', ['filter' => 'adminAuth'], function (RouteCollection $ro
     $routes->post('articles/crop-image', 'Admin\Articles::cropImage');
     $routes->get('articles/media-library', 'Admin\Articles::mediaLibrary');
     $routes->post('articles/embed-youtube', 'Admin\Articles::embedYoutube');
+
+    // Messages (contact form submissions)
+    $routes->get('messages', 'Admin\Messages::index');
+    $routes->get('messages/show/(:num)', 'Admin\Messages::show/$1');
+    $routes->post('messages/toggle-read', 'Admin\Messages::toggleRead');
+    $routes->post('messages/delete', 'Admin\Messages::delete');
 });

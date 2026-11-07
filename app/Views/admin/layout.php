@@ -187,6 +187,16 @@ $segment3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : '';
                             </a>
                         </li>
 
+                        <li class="nav-item">
+                            <a href="<?= base_url('admin/messages') ?>" class="nav-link <?= $segment2 === 'messages' ? 'active' : '' ?>">
+                                <i class="nav-icon bi bi-envelope"></i>
+                                <p>Pesan<?php
+                                    $__unread = (new \App\Models\ContactMessageModel())->countUnread();
+                                    if ($__unread): ?> <span class="badge text-bg-danger ms-1"><?= $__unread ?></span><?php endif;
+                                ?></p>
+                            </a>
+                        </li>
+
                         <li class="nav-header">-</li>
 
                         <li class="nav-item">

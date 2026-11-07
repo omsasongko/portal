@@ -218,7 +218,7 @@
                             <a href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
                         <?php endforeach; ?>
                     </p>
-                    <p class="footer-company-name">All Rights Reserved. &copy; <?= date('Y') ?> <a href="<?= base_url('/') ?>"><?= esc($identity['site_name'] ?? 'Portal') ?></a></p>
+                    <p class="footer-company-name">&copy; <?= date('Y') ?> <a href="<?= base_url('/') ?>"><?= esc($identity['site_name'] ?? 'Pak De Sasongko') ?></a></p>
                 </div>
             </div>
         </div><!-- end container -->

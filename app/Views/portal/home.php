@@ -358,32 +358,37 @@
             <div class="row">
                 <div class="col-md-12">
                     <div class="contact_form">
-                        <div id="message"></div>
-                        <form id="contactForm" name="sentMessage" novalidate="novalidate">
+                        <div id="contact-status"></div>
+                        <form id="contactForm" name="sentMessage" novalidate="novalidate" method="post" action="<?= base_url('contact/submit') ?>">
+                            <?= csrf_field() ?>
+                            <!-- Honeypot: hidden from real users, bots will fill it -->
+                            <div style="position:absolute;left:-9999px;" aria-hidden="true">
+                                <input type="text" name="website" tabindex="-1" autocomplete="off" value="">
+                            </div>
 							<div class="row">
 								<div class="col-md-6">
 									<div class="mb-3">
-										<input class="form-control" id="name" type="text" placeholder="<?= esc($contact['name_placeholder'] ?? 'Your Name') ?>" required="required" data-validation-required-message="Please enter your name.">
+										<input class="form-control" id="cf-name" name="name" type="text" placeholder="<?= esc($contact['name_placeholder'] ?? 'Your Name') ?>" required="required" data-validation-required-message="Please enter your name." maxlength="200">
 										<p class="form-text text-danger"></p>
 									</div>
 									<div class="mb-3">
-										<input class="form-control" id="email" type="email" placeholder="<?= esc($contact['email_placeholder'] ?? 'Your Email') ?>" required="required" data-validation-required-message="Please enter your email address.">
+										<input class="form-control" id="cf-email" name="email" type="email" placeholder="<?= esc($contact['email_placeholder'] ?? 'Your Email') ?>" required="required" data-validation-required-message="Please enter your email address." maxlength="200">
 										<p class="form-text text-danger"></p>
 									</div>
 									<div class="mb-3">
-										<input class="form-control" id="phone" type="tel" placeholder="<?= esc($contact['phone_placeholder'] ?? 'Your Phone') ?>" required="required" data-validation-required-message="Please enter your phone number.">
+										<input class="form-control" id="cf-phone" name="phone" type="tel" placeholder="<?= esc($contact['phone_placeholder'] ?? 'Your Phone') ?>" maxlength="50">
 										<p class="form-text text-danger"></p>
 									</div>
 								</div>
 								<div class="col-md-6">
 									<div class="mb-3">
-										<textarea class="form-control" id="message" placeholder="<?= esc($contact['message_placeholder'] ?? 'Your Message') ?>" required="required" data-validation-required-message="Please enter a message."></textarea>
+										<textarea class="form-control" id="cf-message" name="message" placeholder="<?= esc($contact['message_placeholder'] ?? 'Your Message') ?>" required="required" data-validation-required-message="Please enter a message." maxlength="5000"></textarea>
 										<p class="form-text text-danger"></p>
 									</div>
 								</div>
 								<div class="clearfix"></div>
 								<div class="col-lg-12 text-center">
-									<div id="success"></div>
+									<div id="contact-success"></div>
 									<button id="sendMessageButton" class="sim-btn btn-hover-new" data-text="<?= esc($contact['submit_label'] ?? 'Send Message') ?>" type="submit"><?= esc($contact['submit_label'] ?? 'Send Message') ?></button>
 								</div>
 							</div>
@@ -404,8 +409,7 @@
                             <a href="<?= esc($mi['url']) ?>"><?= esc($mi['label']) ?></a>
                         <?php endforeach; ?>
                     </p>
-                    <p class="footer-company-name">All Rights Reserved. &copy; 2018 <a href="#">Dominic</a> Design By : 
-					<a href="https://html.design/">html design</a></p>
+                    <p class="footer-company-name">&copy; <?= date('Y') ?> <a href="<?= base_url('/') ?>"><?= esc($identity['site_name'] ?? 'Pak De Sasongko') ?></a></p>
                 </div>
             </div>
         </div><!-- end container -->
@@ -428,11 +432,92 @@
     <script src="<?= base_url('assets/portal/js/jquery.easing.1.3.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/parallaxie.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/headline.js') ?>"></script>
-    <script src="<?= base_url('assets/portal/js/jqBootstrapValidation.js') ?>"></script>
-    <script src="<?= base_url('assets/portal/js/contact_me.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/custom.js') ?>?v=2026110705"></script>
     <script src="<?= base_url('assets/portal/js/jquery.vide.js') ?>"></script>
     <script src="<?= base_url('assets/portal/js/retina.js') ?>"></script>
+
+    <script>
+    (function () {
+        "use strict";
+        var form = document.getElementById("contactForm");
+        if (!form) return;
+
+        var btn = document.getElementById("sendMessageButton");
+        var statusDiv = document.getElementById("contact-status");
+        var successDiv = document.getElementById("contact-success");
+        var submitting = false;
+
+        function clearErrors() {
+            form.querySelectorAll(".form-text.text-danger").forEach(function (p) { p.textContent = ""; });
+            if (statusDiv) statusDiv.innerHTML = "";
+            if (successDiv) successDiv.innerHTML = "";
+        }
+
+        function showFieldError(name, msg) {
+            var field = form.querySelector('[name="' + name + '"]');
+            if (field) {
+                var p = field.parentElement.querySelector(".form-text.text-danger");
+                if (p) p.textContent = msg;
+            }
+        }
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            if (submitting) return;
+
+            clearErrors();
+
+            // Basic client-side checks
+            var name = form.querySelector('[name="name"]').value.trim();
+            var email = form.querySelector('[name="email"]').value.trim();
+            var message = form.querySelector('[name="message"]').value.trim();
+            var ok = true;
+
+            if (!name) { showFieldError("name", "Nama wajib diisi."); ok = false; }
+            if (!email) { showFieldError("email", "Email wajib diisi."); ok = false; }
+            else if (email.indexOf("@") === -1) { showFieldError("email", "Format email tidak valid."); ok = false; }
+            if (!message) { showFieldError("message", "Pesan wajib diisi."); ok = false; }
+            if (!ok) return;
+
+            submitting = true;
+            btn.disabled = true;
+
+            var data = new FormData(form);
+
+            fetch(form.action, {
+                method: "POST",
+                body: data,
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                credentials: "same-origin"
+            })
+            .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+            .then(function (res) {
+                if (res.body.ok) {
+                    form.reset();
+                    if (successDiv) successDiv.innerHTML = '<div class="alert alert-success mt-3">' + res.body.message + '</div>';
+                } else if (res.body.errors) {
+                    for (var field in res.body.errors) {
+                        showFieldError(field, res.body.errors[field]);
+                    }
+                } else if (res.body.message) {
+                    if (statusDiv) statusDiv.innerHTML = '<div class="alert alert-danger">' + res.body.message + '</div>';
+                }
+                // Refresh CSRF token from the response for next submission.
+                if (res.body.csrf) {
+                    var csrfInput = form.querySelector('input[name="' + res.body.csrf.name + '"]');
+                    if (csrfInput) csrfInput.value = res.body.csrf.value;
+                }
+            })
+            .catch(function () {
+                if (statusDiv) statusDiv.innerHTML = '<div class="alert alert-danger">Terjadi kesalahan. Silakan coba lagi.</div>';
+            })
+            .finally(function () {
+                submitting = false;
+                btn.disabled = false;
+            });
+        });
+    })();
+    </script>
 
     <script>
     (function () {
