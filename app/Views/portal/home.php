@@ -359,7 +359,7 @@
                 <div class="col-md-12">
                     <div class="contact_form">
                         <div id="contact-status"></div>
-                        <form id="contactForm" name="sentMessage" novalidate="novalidate" method="post" action="<?= base_url('contact/submit') ?>">
+                        <form id="contactForm" name="sentMessage" novalidate="novalidate" method="post" action="contact/submit">
                             <?= csrf_field() ?>
                             <!-- Honeypot: hidden from real users, bots will fill it -->
                             <div style="position:absolute;left:-9999px;" aria-hidden="true">
